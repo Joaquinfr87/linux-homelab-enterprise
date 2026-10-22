@@ -9,7 +9,7 @@ se aplica desde el repo; nadie toca el server a mano.
 ```text
 server/
 ├── README.md        ← este archivo
-├── bootstrap.sh     ← deja dc1 operativo de punta a punta (idempotente)
+├── bootstrap.sh     ← alias/compatibilidad → install.sh (raíz)
 ├── set-ip.sh        ← fija la IP de dc1 (192.168.0.2) con rollback automático
 ├── gen-env.sh       ← crea/completa .env con secretos aleatorios
 ├── nftables.conf    ← firewall red única 192.168.0.0/24 (política drop)
@@ -28,18 +28,23 @@ server/
 
 ## Puesta en marcha desde cero
 
+El punto de entrada es **`install.sh` (raíz del repo)**; `server/bootstrap.sh`
+queda como alias/compatibilidad.
+
 ```bash
 git pull
-sudo bash server/set-ip.sh --yes --commit   # IP fija .2 (reconectar SSH a .2)
-# APAGAR el DHCP del router TP-Link antes del paso siguiente
-sudo bash server/bootstrap.sh               # paquetes + AD + DNS + NTP + RADIUS + contenedores
+sudo bash install.sh --set-ip --yes   # IP fija .2 (si estás por SSH, reconectar a .2)
+sudo bash install.sh                  # instalación completa
 ```
 
-`bootstrap.sh` es idempotente y hace: preflight → hostname `dc1`/`/etc/hosts`/
-timezone → paquetes → chrony → `.env` con secretos → Samba AD
+La guía completa está en [`../docs/instalacion.md`](../docs/instalacion.md).
+El instalador es idempotente y hace: preflight → identidad `dc1`/`/etc/hosts`/
+timezone → paquetes + Docker → chrony → `.env` con secretos → Samba AD
 (`dc/provision.sh` + usuarios + política) → `/etc/resolv.conf` al DC →
-permisos de shares → certs TLS → `deploy.sh`. Admite `--check` (solo
-diagnóstico) y `--skip-ad` (AD ya provisionado).
+registros DNS de servicios → permisos de shares → certs TLS → `deploy.sh` →
+backup opcional → verificación y reporte de credenciales. Admite `--check`
+(solo diagnóstico), `--skip-ad` (AD ya provisionado), `--skip-dns`,
+`--skip-backup` y `--with-zabbix-agent`.
 
 ## Flujo de trabajo
 
@@ -68,13 +73,17 @@ sin conexión.
 ### DNS (registros de nombres publicados)
 
 Los cambios de config (nginx/compose) se aplican solos con el deploy. Los
-**registros A** que exponen servicios (ej. `david`/`nicolas`) se crean una vez
-en el DC, con ticket de administrador:
+**registros A** que exponen servicios (`mail`, `web`, `webmail`, `archivos`,
+`grafana`, `portainer`, `joaquin`, `david`, `nicolas`, `zabbix`) se crean una
+vez en el DC, con ticket de administrador:
 
 ```bash
 sudo kinit administrator
 sudo bash dc/dns-records.sh    # idempotente: solo agrega lo que falta
 ```
+
+El instalador ya lo hace (`install.sh`, fase 6) inyectando `SERVER`, `ZONE`,
+`PROXY_IP` y `ZABBIX_IP` desde la configuración del server.
 
 ### Rollback
 

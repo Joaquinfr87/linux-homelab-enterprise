@@ -19,10 +19,10 @@ set -euo pipefail
 # Guía de publicación: docs/publicar-servicios-admin.md
 # ===================================================================
 
-SERVER="dc1.sudoers.lan"
-ZONE="sudoers.lan"
-PROXY_IP="192.168.0.2"
-ZABBIX_IP="192.168.0.3"
+SERVER="${SERVER:-dc1.sudoers.lan}"
+ZONE="${ZONE:-sudoers.lan}"
+PROXY_IP="${PROXY_IP:-192.168.0.2}"
+ZABBIX_IP="${ZABBIX_IP:-192.168.0.3}"
 
 ensure_a() {
     local host="$1"
@@ -62,11 +62,16 @@ ensure_a() {
     echo "  ok    $host.$ZONE  →  $target_ip  (creado)"
 }
 
-echo "==> Servicios del DC y web (via proxy) ..."
+echo "==> DC y servicios del DC / web (via proxy) ..."
+ensure_a dc1 "$PROXY_IP" "$PROXY_IP"
 ensure_a mail "$PROXY_IP" "$PROXY_IP"
+ensure_a web "$PROXY_IP" "$PROXY_IP"
+ensure_a www "$PROXY_IP" "$PROXY_IP"
 ensure_a webmail "$PROXY_IP" "$PROXY_IP"
 ensure_a archivos "$PROXY_IP" "$PROXY_IP"
 ensure_a grafana "$PROXY_IP" "$PROXY_IP"
+ensure_a portainer "$PROXY_IP" "$PROXY_IP"
+ensure_a joaquin "$PROXY_IP" "$PROXY_IP"
 ensure_a david "$PROXY_IP" "$PROXY_IP"
 ensure_a nicolas "$PROXY_IP" "$PROXY_IP"
 
@@ -74,4 +79,4 @@ echo "==> Zabbix (acceso directo) ..."
 ensure_a zabbix "$ZABBIX_IP" "$PROXY_IP"
 
 echo
-echo "Listo. Verificar con: dig mail.sudoers.lan / dig webmail.sudoers.lan / dig archivos.sudoers.lan / dig grafana.sudoers.lan / dig david.sudoers.lan / dig nicolas.sudoers.lan / dig zabbix.sudoers.lan"
+echo "Listo. Verificar con: dig dc1.$ZONE / dig mail.$ZONE / dig web.$ZONE / dig webmail.$ZONE / dig archivos.$ZONE / dig grafana.$ZONE / dig portainer.$ZONE / dig joaquin.$ZONE / dig zabbix.$ZONE"

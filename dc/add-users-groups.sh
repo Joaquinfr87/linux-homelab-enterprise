@@ -28,6 +28,9 @@ AD_GROUPS=(
 # ---------- Usuarios iniciales ----------
 # Formato: "usuario"                  → se pide la password
 #          "usuario:PasswordInicial"  → crea con esa password
+# Si se define AD_INITIAL_PASSWORD (lo hace install.sh), esa clave manda
+# para todos los usuarios nuevos.
+AD_INITIAL_PASSWORD="${AD_INITIAL_PASSWORD:-}"
 USERS=(
     "joaquin:CambiarMe!2026"
     "david:CambiarMe!2026"
@@ -74,11 +77,17 @@ for entry in "${USERS[@]}"; do
     user="${entry%%:*}"
     pass="${entry#*:}"
     [ "${pass}" = "${user}" ] && pass=""
+    [ -n "$AD_INITIAL_PASSWORD" ] && pass="$AD_INITIAL_PASSWORD"
     if echo "$USER_LIST" | grep -qx "$user"; then
         echo "    ok: $user"
     else
         if [ -z "$pass" ]; then
-            read -r -s -p "    Password inicial para ${user}: " pass; echo
+            if [ -t 0 ]; then
+                read -r -s -p "    Password inicial para ${user}: " pass; echo
+            else
+                echo "    ERROR: falta AD_INITIAL_PASSWORD y no hay TTY para pedir la clave de ${user}"
+                exit 1
+            fi
             [ -n "$pass" ] || { echo "    ERROR: password vacía para ${user}"; exit 1; }
         fi
         samba-tool user create "$user" "$pass" --must-change-at-next-login
@@ -91,8 +100,13 @@ for entry in "${MEMBERSHIPS[@]}"; do
     user="${entry%%:*}"
     groups="${entry#*:}"
     for g in ${groups//,/ }; do
-        samba-tool group addmembers "$g" "$user"
-        echo "    ${user} -> ${g}"
+        members=$(samba-tool group listmembers "$g" 2>/dev/null || true)
+        if printf '%s\n' "$members" | grep -qx "$user"; then
+            echo "    ok: ${user} -> ${g}"
+        else
+            samba-tool group addmembers "$g" "$user"
+            echo "    + ${user} -> ${g}"
+        fi
     done
 done
 

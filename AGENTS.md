@@ -97,16 +97,18 @@ máquina Debian** ("laptop siempre encendida", estilo lab). Es la evolución
 ## Estructura del repo
 
 ```text
-TSO-II-final/
+linux-homelab-enterprise/
 ├── AGENTS.md            ← este archivo (contexto para IA)
+├── install.sh           ← ÚNICO punto de entrada: instalación/verificación
 ├── docker-compose.yml   ← servicios contenedor (fuente de verdad)
 ├── .env.example
 ├── README.md            ← índice corto → docs/
 ├── dc/                  ← Samba AD DC nativo (provision.sh, shares.conf, krb5, scripts)
 ├── server/              ← host: nftables, sshd, chrony, radius/ (WiFi 802.1X), deploy
+│   └── bootstrap.sh     ← alias/compatibilidad → install.sh
 ├── clients/             ← guías de clientes (wifi.md ✓; linux/windows pendientes)
 ├── services/            ← por servicio contenedor (dhcp, web, mail, webmail, db, print, monitoring; apps pendientes)
-└── docs/                ← TODA la documentación (arquitectura, futuro: red, seguridad, backup…)
+└── docs/                ← TODA la documentación (instalacion.md, arquitectura, red, seguridad, backup…)
 
 Máquinas: dc1 (host físico, 192.168.0.2) + zabbix (server Debian físico dedicado, 192.168.0.3).
 ```
@@ -114,14 +116,17 @@ Máquinas: dc1 (host físico, 192.168.0.2) + zabbix (server Debian físico dedic
 ## Flujo de trabajo habitual
 
 ```bash
-cp .env.example .env
-docker compose up -d --build            # levantar/actualizar servicios
+sudo bash install.sh --check            # diagnóstico, no modifica nada
+sudo bash install.sh                    # instalar/reparar TODO (idempotente)
+sudo bash install.sh --set-ip --yes     # fijar 192.168.0.2 (corta SSH)
+git pull && sudo bash server/deploy.sh  # actualizar solo firewall/SSH/RADIUS/contenedores
 docker compose up -d <servicio>         # servicio puntual
 ```
 
 - Documentación nueva va SIEMPRE en `docs/` (no inflar el `README.md`).
 - Un servicio nuevo = carpeta `services/<nombre>` + bloque en el compose.
 - En el server físico: `git pull && sudo bash server/deploy.sh` (no tocar a mano).
+- Logs y credenciales de cada instalación: `/var/log/tso-install/<fecha>/`.
 
 ## Pendientes (próximos pasos)
 
@@ -146,5 +151,6 @@ docker compose up -d <servicio>         # servicio puntual
 
 - [`docs/arquitectura.md`](docs/arquitectura.md) — diseño completo, plan IP,
   fases de implementación (Fase 0→6) y limitaciones.
-- [`docs/README.md`](docs/README.md) — índice de documentación.
+- [`docs/instalacion.md`](docs/instalacion.md) — instalación unificada (`install.sh`).
+- [`docs/publicar-servicios-admin.md`](docs/publicar-servicios-admin.md) — DNS/proxy.
 - Laboratorio original: `../TSO-II` (servicios base y decisiones).

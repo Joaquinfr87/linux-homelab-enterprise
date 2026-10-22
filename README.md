@@ -9,17 +9,25 @@ Red: **una sola red `192.168.0.0/24`** — server `192.168.0.2`, gateway router 
 
 ## Documentación
 
-**Toda la documentación vive en [`docs/`](docs/README.md).**
+**Toda la documentación vive en [`docs/`](docs/).**
 
-- **[`docs/arquitectura.md`](docs/arquitectura.md)** — diseño completo (la leés primero).
+- **[`docs/instalacion.md`](docs/instalacion.md)** — instalación unificada con `install.sh`.
+- **[`docs/publicar-servicios-admin.md`](docs/publicar-servicios-admin.md)** — DNS/proxy de servicios internos.
 - **[`AGENTS.md`](AGENTS.md)** — contexto resumido para agentes de IA.
 
 ## Arranque rápido
 
 ```bash
-cp .env.example .env        # completar valores
-docker compose up -d --build
+sudo bash install.sh --check     # diagnóstico: no modifica nada
+sudo bash install.sh             # instalación completa (interactiva)
 ```
+
+El instalador unifica IP fija, paquetes, AD, DNS, TLS, firewall, FreeRADIUS,
+contenedores, backup y verificación. Deja los logs y las credenciales en
+`/var/log/tso-install/<fecha>/` y muestra al final el estado de cada servicio.
+
+- Guía completa: **[`docs/instalacion.md`](docs/instalacion.md)**.
+- Para actualizar solo los servicios: `git pull && sudo bash server/deploy.sh`.
 
 ## Repos relacionados
 

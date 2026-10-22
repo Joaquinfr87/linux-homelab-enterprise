@@ -40,8 +40,9 @@ hostnamectl set-hostname "${DC_FQDN}"
 sed -i "/[[:space:]]${DC_FQDN}\.${DOMAIN}/d;/[[:space:]]${DC_FQDN}[[:space:]]\?$/d" /etc/hosts
 grep -qx "${IP_SERVER} ${DC_FQDN}.${DOMAIN} ${DC_FQDN}" /etc/hosts \
     || sed -i "1i ${IP_SERVER} ${DC_FQDN}.${DOMAIN} ${DC_FQDN}" /etc/hosts
-grep -q "^127.0.0.1.*${DC_FQDN}" /etc/hosts && \
-    sed -i "s/^127.0.0.1.*/${DC_FQDN}/d" /etc/hosts
+if grep -q "^127\.0\.0\.1.*${DC_FQDN}" /etc/hosts; then
+    sed -i "/^127\.0\.0\.1.*${DC_FQDN}/d" /etc/hosts
+fi
 hostnamectl set-location "${DOMAIN}" 2>/dev/null || true
 
 echo "==> [2/7] instalando paquetes (samba, kerberos, chrony)"
@@ -89,7 +90,7 @@ fi
 samba-tool domain provision \
     --realm="${REALM}" \
     --domain="${NETBIOS}" \
-    ${ADMIN_PASS_ARG} \
+    "${ADMIN_PASS_ARG}" \
     --server-role=dc \
     --dns-backend=SAMBA_INTERNAL \
     --use-rfc2307 \

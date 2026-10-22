@@ -89,44 +89,10 @@ sudo nft -f /etc/nftables.conf
 sudo systemctl enable nftables >/dev/null 2>&1 || true
 echo "    firewall activo (tabla inet filter)"
 
-echo "==> [3/7] Respaldo y validación de sshd_config ..."
-BACKUP="${BACKUP:-}"
-if [ -f /etc/ssh/sshd_config ]; then
-    BACKUP="/etc/ssh/sshd_config.bak.$(date +%Y%m%d%H%M%S)"
-    sudo cp /etc/ssh/sshd_config "$BACKUP"
-    echo "    respaldo en $BACKUP"
-fi
-# sshd NO arranca si un ListenAddress no existe en ninguna interfaz, y
-# sshd -t no lo detecta (queda el server sin SSH). Se omiten (comentadas)
-# las direcciones que no estén configuradas en esta máquina.
-SSHD_TMP="$(mktemp)"
-trap 'rm -f "$SSHD_TMP"' EXIT
-LOCAL_IPS="$(ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1)"
-while IFS= read -r LINE; do
-    if [[ "$LINE" =~ ^[[:space:]]*ListenAddress[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) ]]; then
-        LIP="${BASH_REMATCH[1]}"
-        if printf '%s\n' "$LOCAL_IPS" | grep -Fxq "$LIP"; then
-            printf '%s\n' "$LINE"
-        else
-            printf '# [deploy] omitida: %s no existe en este host\n# %s\n' "$LIP" "$LINE"
-            echo "    AVISO: ListenAddress $LIP omitida (no existe en este host)"
-        fi
-    else
-        printf '%s\n' "$LINE"
-    fi
-done < "$DIR/sshd_config" > "$SSHD_TMP"
-sudo cp "$SSHD_TMP" /etc/ssh/sshd_config
-
-echo "==> [4/7] Verificando y reiniciando ssh ..."
-if sudo sshd -t; then
-    sudo systemctl restart ssh
-    echo "    ssh reiniciado correctamente"
-else
-    echo "    ERROR: sshd -t falló. No se reinicia ssh."
-    echo "    Restaurar respaldo:"
-    echo "      sudo cp $BACKUP /etc/ssh/sshd_config && sudo systemctl restart ssh"
-    exit 1
-fi
+echo "==> [3/7] SSH (sshd_config: password, sin claves) ..."
+# Toda la lógica (respaldo, filtrado de ListenAddress inexistentes,
+# validación con sshd -t, reinicio y rollback) vive en ssh-apply.sh.
+bash "$DIR/ssh-apply.sh"
 
 echo "==> [5/7] Chrony (NTP) ..."
 if [ -f /etc/chrony/chrony.conf ]; then

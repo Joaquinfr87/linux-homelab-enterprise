@@ -1,34 +1,41 @@
 # ===================================================================
-# sshd_config — SSH Hardening del servidor
+# sshd_config — SSH del servidor (login por CONTRASEÑA, sin claves)
 # ===================================================================
 # Aplicar en el servidor:
-#   sudo cp sshd_config /etc/ssh/sshd_config
-#   sudo systemctl restart ssh
+#   sudo bash server/ssh-apply.sh
+#   (o dentro del flujo completo: sudo bash server/bootstrap.sh)
 #
-# IMPORTANTE ANTES DE APLICAR:
-#   1) Cada admin debe subir su clave pública primero:
-#      ssh-copy-id joaquin@192.168.0.2   (en cada notebook)
-#   2) Verificar que se puede entrar con la clave NUEVA en OTRA
-#      terminal antes de reiniciar ssh (para no quedar afuera).
+# Autenticación: SOLO contraseña. Las claves públicas quedan
+# deshabilitadas a propósito. Las contraseñas son las del sistema/AD y el
+# origen del acceso ya está restringido a `admin_ips` en el firewall
+# (server/nftables.conf + ADMIN_IPS_EXTRA en .env).
 # ===================================================================
 
-# ─── Acceso ───
-# Por ahora: se permite password (las IPs de origen ya están
-# restringidas a admin_ips .50/.51/.52 en el firewall).
-PermitRootLogin no
-PasswordAuthentication yes
-AllowUsers joaquin david nicolas
+# Mantiene los drop-ins de la distro (cloud-init, etc.) antes de lo nuestro.
+Include /etc/ssh/sshd_config.d/*.conf
 
-# ─── Límites de sesión ───
+# ─── Autenticación ───
+PermitRootLogin no
+PubkeyAuthentication no
+PasswordAuthentication yes
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+UsePAM yes
 MaxAuthTries 3
 LoginGraceTime 30
-MaxSessions 5
 
-# ─── Keepalive ───
+# ─── Usuarios habilitados (admins del dominio) ───
+AllowUsers joaquin david nicolas
+
+# ─── Sesión ───
+MaxSessions 5
+MaxStartups 10:30:60
 ClientAliveInterval 300
 ClientAliveCountMax 2
+# No resolver reverso en el login (si el DNS del DC está caído, no demora).
+UseDNS no
 
-# ─── Deshabilitar forwarding innecesario ───
+# ─── Sin forwarding innecesario ───
 AllowTcpForwarding no
 AllowAgentForwarding no
 X11Forwarding no
@@ -41,8 +48,6 @@ SyslogFacility AUTH
 
 # ─── Puerto y red ───
 Port 22
+# IP fija del server (la deja server/set-ip.sh). ssh-apply.sh comenta
+# automáticamente cualquier ListenAddress que no exista en el host.
 ListenAddress 192.168.0.2
-# Red de gestión alternativa (p. ej. cuando la LAN principal o el WiFi
-# quedan inaccesibles). OJO: esta IP DEBE existir en una interface del
-# server; si no, sshd no arranca y perdés el SSH.
-ListenAddress 192.168.100.39

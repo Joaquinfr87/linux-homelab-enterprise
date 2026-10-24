@@ -1,56 +1,47 @@
-# Informe LaTeX (normas APA · tipografía Arial · papel A4) — Actividad 8
+# Actividad 8: Herramientas de Monitoreo para la Defensa (IDS / IPS)
 
-Informe de la Actividad 8 (**Configuración del DNS del dominio con Samba AD
-DC y Servidor WEB/Proxy inverso con Nginx en Linux con Debian**). Solo incluye
-el **formato** (carátula, texto y portada); el contenido se agrega a medida
-que se redacta.
+Informe técnico académico para la asignatura **Taller de Sistemas Operativos II** (Universidad Privada Domingo Savio).
 
-```
-latex/a8/
-├── main.tex                  # Integra todo: formato + portada + capítulos + anexos. Datos de portada aquí.
-├── Makefile                  # Compila el informe con un solo comando (make).
-├── guia-capturas.md          # Lista de capturas de pantalla a tomar (una por figura del informe).
-├── formato/                  # FORMATO: todo lo que define la apariencia.
-│   ├── preambulo.sty         # Paquetes, configuración APA + A4 y carátulas de capítulo.
-│   ├── portada.tex           # Portada estilo APA (los datos se definen en main.tex).
-│   └── referencias.bib       # Fuentes bibliográficas en BibTeX (agregar las citadas en el texto).
-├── contenido/                # CONTENIDO: un archivo por sección.
-│   ├── 01-introduccion.tex   # Introducción (capítulo I).
-│   ├── 02-objetivos.tex      # Objetivos (capítulo II).
-│   ├── 03-alcance.tex        # Alcance y límites (capítulo II).
-│   ├── 04-desarrollo.tex     # Desarrollo del trabajo (capítulo III).
-│   └── 05-conclusiones.tex   # Conclusiones.
-├── anexos/                   # Material complementario (tras las referencias).
-│   └── anexo-a.tex           # Plantilla de anexo.
-└── figuras/                  # Imágenes (logo institucional + capturas de pantalla).
-    └── logo.png              # Logo institucional de la portada.
-```
+---
 
-## Compilar
+## Datos de la Entrega
 
-Con un solo comando (requiere `latexmk`):
+* **Actividad:** A8. Informe: Herramientas de monitoreo para la defensa
+* **Equipo:** Grupo 1 Sudoers
+* **Integrantes:**
+  * Joaquin Alessandro Felipez Rojas
+  * Nicolas Sebastian Reguerin Meneses
+  * David Willy Cruz Huanca
+* **Docente:** Jose Abraham Mita Huanca
+* **Fecha:** 24/10/2026 - 20:15
+* **Puntaje:** 100 Puntos
+
+---
+
+## Contenido del Informe
+
+1. **Conceptos Fundamentales (IDS vs IPS):**
+   * Detección pasiva fuera de banda (*Out-of-band*) vs Prevención en línea (*In-line*).
+   * Modos de inspección: basados en firmas vs basados en anomalías.
+   * Gestión de riesgos: análisis de falsos positivos vs falsos negativos, impacto en latencia y filosofías de resiliencia (*Fail-Open* con directiva `bypass` vs *Fail-Close*).
+2. **Propuesta y Análisis de Herramientas Open Source:**
+   * Comparativa técnica profunda entre **Suricata 7** y **Snort 3** (modelo de hilos multithreading, aceleración de patrones con Intel Hyperscan, integración con el kernel Linux vía NFQUEUE/DAQ, decodificación de protocolos de Directorio Activo como SMB/Kerberos/LDAP, telemetría EVE JSON).
+   * Referencia metodológica a **Wireshark** como analizador forense interactivo.
+   * Justificación técnica de la selección de Suricata como motor nativo para `dc1`.
+3. **Propuesta Arquitectónica en Red Empresarial:**
+   * Ubicación estratégica de sensores: Borde perimetral (tráfico Norte-Sur), Núcleo/Distribución interna (tráfico Este-Oeste en switches SPAN) y Servidor central (*Host-based Network IPS* H-NIPS en `dc1`).
+   * Diagrama de red lógico y coherente modelado en TikZ.
+   * Validación empírica de laboratorio con pruebas de alerta pasiva (IDS) y bloqueo proactivo en tiempo real (IPS).
+
+---
+
+## Compilación del Documento
+
+Para generar el PDF final bajo normas APA y formato institucional:
 
 ```bash
-make          # compila el PDF
-make view     # compila y abre el PDF
+cd docs/latex/a8
+make
 ```
 
-Sin `latexmk` (compilación manual):
-
-```bash
-pdflatex -interaction=nonstopmode main.tex
-bibtex main
-pdflatex -interaction=nonstopmode main.tex
-pdflatex -interaction=nonstopmode main.tex
-```
-
-## Datos de la portada
-
-Se editan en la parte superior de `main.tex`:
-
-- `\tituloDocumento`
-- `\equipo`
-- `\integrantes`
-- `\docente`
-- `\materia`
-- `\fecha`
+El resultado compilado es `main.pdf`.

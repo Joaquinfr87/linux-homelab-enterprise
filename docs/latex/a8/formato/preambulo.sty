@@ -20,6 +20,9 @@
 
 % --- Idioma y codificación --------------------------------------------------
 \RequirePackage[spanish,es-tabla]{babel}
+% Los atajos activos de babel-spanish (< > " ~) rompen TikZ y listings
+% cuando aparecen dentro de argumentos de macros; se desactivan.
+\AtBeginDocument{\shorthandoff{<>}}
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
 
@@ -85,9 +88,58 @@
 \captionsetup[table]{labelsep=colon, position=above, justification=centering}
 \captionsetup[figure]{labelsep=colon, position=above, justification=centering}
 
-% Entorno para tablas APA: espaciado sencillo y cuerpo en tamaño pequeño.
-% El desborde de líneas se evita con \tabcolsep y el ancho de las columnas.
-\newenvironment{tablaAPA}{\setstretch{1}\small}{}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% --- Manejo robusto de código monoespaciado y tablas (sin desbordes) ---------
+% Por omisión, TeX fija \hyphenchar\font=-1 en fuentes teletype (\texttt/\ttfamily)
+% y no considera delimitadores (/ , _ , etc.) como puntos de corte permitidos.
+% En columnas estrechas, esto genera cajas indivisibles (\hbox overfull) que invaden
+% las columnas adyacentes. La siguiente macro analiza los tokens del argumento
+% e inserta puntos de ruptura opcionales (\penalty0\hskip0pt) tras cada delimitador.
+\RequirePackage{expl3}
+
+\ExplSyntaxOn
+\tl_new:N \l__upds_code_tl
+\cs_new_protected:Npn \upds_break_code:n #1
+{
+  \tl_set:Nn \l__upds_code_tl { #1 }
+  \tl_replace_all:Nnn \l__upds_code_tl { / } { \symbol{47}\penalty0\hskip0pt\relax }
+  \tl_replace_all:Nnn \l__upds_code_tl { \_ } { \textunderscore\penalty0\hskip0pt\relax }
+  \tl_replace_all:Nnn \l__upds_code_tl { _ } { \textunderscore\penalty0\hskip0pt\relax }
+  \tl_replace_all:Nnn \l__upds_code_tl { - } { \symbol{45}\penalty0\hskip0pt\relax }
+  \tl_replace_all:Nnn \l__upds_code_tl { . } { \symbol{46}\penalty0\hskip0pt\relax }
+  \tl_replace_all:Nnn \l__upds_code_tl { : } { \symbol{58}\penalty0\hskip0pt\relax }
+  \tl_replace_all:Nnn \l__upds_code_tl { < } { \symbol{60}\penalty0\hskip0pt\relax }
+  \tl_replace_all:Nnn \l__upds_code_tl { > } { \symbol{62}\penalty0\hskip0pt\relax }
+  \tl_use:N \l__upds_code_tl
+}
+
+% Redefinición global de \texttt para que divida automáticamente en tablas y párrafos
+\DeclareRobustCommand{\texttt}[1]{%
+  \leavevmode
+  \begingroup
+  \ttfamily
+  \hyphenchar\font=45\relax
+  \emergencystretch=3em\relax
+  \hbadness=10000\relax
+  \upds_break_code:n { #1 }%
+  \endgroup
+}
+\ExplSyntaxOff
+
+% Comando alternativo \code:
+\newcommand{\code}[1]{\texttt{#1}}
+
+% Entorno para tablas APA: espaciado sencillo, cuerpo pequeño, tolerancia \sloppy
+% y elasticidad horizontal (\emergencystretch) para evitar desbordes de columna.
+\newenvironment{tablaAPA}{%
+  \setstretch{1}%
+  \small
+  \sloppy
+  \emergencystretch=3em\relax
+}{}
 
 % --- Fuente de figuras y tablas ----------------------------------------------
 % \contenidoConFuente{<contenido>}{<texto de la fuente>} mide el ancho real del
@@ -197,7 +249,7 @@
   \fi
 }
 \RequirePackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, babel, automata}
 
 % --- Código fuente -----------------------------------------------------------
 \RequirePackage{listings}

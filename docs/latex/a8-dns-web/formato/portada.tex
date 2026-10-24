@@ -1,0 +1,52 @@
+% ============================================================================
+%  PORTADA  (formato APA 7.ª edición)
+%  ----------------------------------------------------------------------------
+%  Los datos provienen de las macros definidas en main.tex. Editar ahí.
+% ============================================================================
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \setstretch{1}
+  \setlength{\parskip}{0pt}
+
+  \begin{center}
+    \vspace*{0.6cm}
+
+    {\bfseries\fontsize{20}{24}\selectfont \universidad \par}
+    {\bfseries\fontsize{18}{22}\selectfont \facultad \par}
+    {\bfseries\fontsize{16}{19}\selectfont \carrera \par}
+
+    \vspace{0.8cm}
+
+    % Logo de la institución (colocar "logo-upds.png" u otro nombre en figuras/)
+    \IfFileExists{figuras/logo.png}{%
+      \includegraphics[width=0.30\textwidth]{figuras/logo.png}\par
+    }{}
+
+    \vspace{0.9cm}
+
+    {\bfseries\Large \tituloDocumento \par}
+
+    \vspace{1.0cm}
+
+    {\large \integrantes \par}
+
+    \vspace{1.0cm}
+
+    {\normalsize \textbf{Asignatura:} \asignatura \par}
+    {\normalsize \textbf{Docente:} \docente \par}
+    {\normalsize \textbf{Fecha de entrega:} \fechaEntrega \par}
+
+    \vspace{1.1cm}
+
+    {\normalsize \textbf{Equipo:} \equipo \par}
+
+    \vspace{0.9cm}
+
+    {\normalsize \ciudad \par}
+
+    \vspace{0.2cm}
+
+    {\normalsize \the\year \par}
+  \end{center}
+\end{titlepage}

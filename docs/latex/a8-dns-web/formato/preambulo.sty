@@ -1,0 +1,380 @@
+% ============================================================================
+%  PREÁMBULO / FORMATO DEL INFORME  (normas APA · tipografía Arial · A4)
+%  ----------------------------------------------------------------------------
+%  Este archivo concentra TODOS los paquetes y configuraciones de apariencia.
+%  El contenido del informe NO se escribe aquí.
+%
+%  NOTA SOBRE LA TIPOGRAFÍA:
+%  Se usa Helvetica (paquete `helvet`), el sustituto estándar de Arial en LaTeX,
+%  porque el paquete `uarial` (fuente Arial URW) fue retirado de TeX Live 2026
+%  y de CTAN. Helvetica y Arial son tipografías grotescas prácticamente
+%  idénticas, por lo que el resultado visual es equivalente.
+%
+%  NOTA SOBRE LAS REFERENCIAS:
+%  La lista de referencias se genera con el paquete apacite, que sigue la
+%  norma APA (sexta edición) para las citas y la bibliografía.
+% ============================================================================
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{formato/preambulo}[2026/09/15 Formato APA profesional con Arial, A4]
+
+% --- Idioma y codificación --------------------------------------------------
+\RequirePackage[spanish,es-tabla]{babel}
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+
+% --- Tipografía Arial (Helvetica a escala visual de 12 pt) ------------------
+\RequirePackage[scaled=0.96]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% --- Márgenes de 1 pulgada en papel A4 (APA 7) ------------------------------
+\RequirePackage[a4paper,top=1in,bottom=1in,left=1in,right=1in]{geometry}
+
+% --- Interlineado doble (APA 7) ---------------------------------------------
+\RequirePackage[doublespacing]{setspace}
+
+% --- Pie de página: línea horizontal y número de página a la derecha ---------
+\RequirePackage{fancyhdr}
+\setlength{\headheight}{17pt}     % altura para el encabezado (1 línea + regla)
+\setlength{\headsep}{25pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[R]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+  \renewcommand{\footrulewidth}{0.4pt}%
+}
+
+% --- Jerarquía de títulos estilo APA ----------------------------------------
+%  Nivel 1 (sección): alineado a la izquierda y en negrita  |  Nivel 2
+%  (subsección): alineado a la izquierda y en negrita      |  Nivel 3:
+%  izquierda, negrita y cursiva.
+\RequirePackage{titlesec}
+\titleformat{\section}{\bfseries\Large}{\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+\titleformat{\subsection}{\bfseries\large}{\thesubsection}{0.6em}{}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+\titleformat{\subsubsection}{\bfseries\normalsize\itshape}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\subsubsection}{0pt}{6pt}{6pt}
+
+% --- Párrafos: sin sangría, justificados y con un pequeño espaciado entre
+% párrafos para mantenerlos diferenciados (APA 7 usa sangría, pero el
+% formato del informe exige alineación justificada sin sangría) --------------
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\setlength{\emergencystretch}{3em}
+
+% --- Tablas y figuras --------------------------------------------------------
+\RequirePackage{booktabs}        % tablas profesionales
+\RequirePackage{array}           % extensiones de columnas (m{} para centrado vertical)
+\RequirePackage{float}           % posicionamiento de flotantes
+\setlength{\tabcolsep}{3pt}      % reduce padding para evitar desbordes
+\renewcommand{\arraystretch}{1.3}   % espacio vertical entre filas de tablas
+\RequirePackage{caption}
+% babel (español) reasigna \figurename/\tablename al iniciar el documento;
+% por eso la renombración a MAYÚSCULAS debe hacerse después (AtBeginDocument).
+\AtBeginDocument{%
+  \renewcommand{\figurename}{FIGURA}%
+  \renewcommand{\tablename}{TABLA}%
+}
+\captionsetup{font=small, labelfont=bf, textfont=normal, singlelinecheck=true, skip=6pt}
+\captionsetup[table]{labelsep=colon, position=above, justification=centering}
+\captionsetup[figure]{labelsep=colon, position=above, justification=centering}
+
+% Entorno para tablas APA: espaciado sencillo y cuerpo en tamaño pequeño.
+% El desborde de líneas se evita con \tabcolsep y el ancho de las columnas.
+\newenvironment{tablaAPA}{\setstretch{1}\small}{}
+
+% --- Fuente de figuras y tablas ----------------------------------------------
+% \contenidoConFuente{<contenido>}{<texto de la fuente>} mide el ancho real del
+% contenido (imagen, diagrama TikZ o tabla) y lo coloca en un \parbox centrado,
+% con la línea FUENTE debajo, alineada a la izquierda del contenido (a la par,
+% no a ras del margen).
+\newsavebox{\cajaContenido}
+\newcommand{\contenidoConFuente}[2]{%
+  \begin{lrbox}{\cajaContenido}#1\end{lrbox}%
+  \parbox{\wd\cajaContenido}{%
+    \usebox{\cajaContenido}\par
+    \vspace{6pt}%
+    {\centering\setstretch{1}\footnotesize\textbf{FUENTE:} #2\par}%
+  }%
+}
+% \fuenteAPA{<texto>} para contenido a ancho completo (p. ej. terminal).
+\newcommand{\fuenteAPA}[1]{%
+  \vspace{4pt}%
+  {\centering\setstretch{1}\footnotesize\textbf{FUENTE:} #1\par}%
+}
+
+% \figuraAPA{<label>}{<título>}{<contenido>}{<fuente>} coloca el título de la
+% figura a lo ancho del texto y la línea FUENTE alineada a la par del título
+% (también a ancho del texto), mientras la imagen (o diagrama TikZ) se centra
+% al ancho de su propio contenido. Así, el título y la fuente comparten la
+% misma alineación y el título no se ve achicado en imágenes estrechas
+% (p. ej. capturas de pantalla en orientación vertical). Si <label> viene
+% vacío, se omite el \label (caso de figuras sin referencia cruzada).
+\newcommand{\figuraAPA}[4]{%
+  \begin{lrbox}{\cajaContenido}#3\end{lrbox}%
+  % Título a ancho del texto (no se achica en imágenes estrechas)
+  \vspace{12pt}%
+  \noindent
+  \if\relax\detokenize{#1}\relax
+    \captionsetup{width=\linewidth}\captionof{figure}{#2}%
+  \else
+    \captionsetup{width=\linewidth}\captionof{figure}{#2}\label{#1}%
+  \fi
+  \par
+  % Imagen centrada al ancho de su propio contenido
+  \begin{center}%
+    \parbox{\wd\cajaContenido}{%
+      \setstretch{1}%
+      \usebox{\cajaContenido}%
+    }%
+  \end{center}%
+  % FUENTE centrada igual que el título (a ancho del texto)
+  \vspace{6pt}%
+  {\centering\setstretch{1}\footnotesize\textbf{FUENTE:} #4\par}%
+}
+
+% --- Gráficos y diagramas ----------------------------------------------------
+\RequirePackage{graphicx}
+\graphicspath{{figuras/}}   % las imágenes se colocan en la carpeta figuras/
+
+% \capturaAPA{<label>}{<título>}{<archivo.png>}{<descripción de la captura>}
+% Muestra la figura si la imagen existe; si no, un recuadro indicativo con la
+% descripcion de la captura pendiente y el nombre del archivo esperado.
+\newcommand{\capturaAPA}[4]{%
+  \begin{lrbox}{\cajaContenido}%
+    \IfFileExists{figuras/#3}{%
+      \includegraphics[width=0.85\linewidth,height=0.55\textheight,keepaspectratio]{#3}%
+    }{%
+      \fbox{%
+        \begin{minipage}{0.8\linewidth}
+          \centering\setstretch{1}%
+          \vspace{2.2cm}%
+          {\small\textbf{CAPTURA PENDIENTE}\\[4pt]
+           \footnotesize Guardar como: \texttt{#3}\\[6pt]
+           \footnotesize #4}%
+          \vspace{2.2cm}%
+        \end{minipage}%
+      }%
+    }%
+  \end{lrbox}%
+  \vspace{12pt}%
+  \noindent
+  \if\relax\detokenize{#1}\relax
+    \captionsetup{width=\linewidth}\captionof{figure}{#2}%
+  \else
+    \captionsetup{width=\linewidth}\captionof{figure}{#2}\label{#1}%
+  \fi
+  \par
+  \begin{center}%
+    \parbox{\wd\cajaContenido}{%
+      \setstretch{1}%
+      \usebox{\cajaContenido}%
+    }%
+  \end{center}%
+  \vspace{6pt}%
+  {\centering\setstretch{1}\footnotesize\textbf{FUENTE:} #4\par}%
+}
+% Escalar figuras automáticamente para que no se salgan del texto
+\newsavebox{\imagenBox}
+\newcommand{\figuraSegura}[3][0.90]{%
+  \begin{lrbox}{\imagenBox}
+    \includegraphics[width=\textwidth,height=0.6\textheight,keepaspectratio]{#2}%
+  \end{lrbox}
+  \ifdim \wd\imagenBox > \textwidth
+    \begin{center}
+      \resizebox{\textwidth}{!}{\usebox{\imagenBox}}%
+    \end{center}
+  \else
+    \begin{center}
+      \usebox{\imagenBox}%
+    \end{center}
+  \fi
+}
+\RequirePackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit}
+
+% --- Código fuente -----------------------------------------------------------
+\RequirePackage{listings}
+\RequirePackage{xcolor}
+\definecolor{codigofondo}{RGB}{245,245,245}
+\lstset{
+  basicstyle=\small\sffamily,
+  backgroundcolor=\color{codigofondo},
+  frame=single,
+  breaklines=true,
+  literate={ó}{{\'o}}1 {é}{{\'e}}1 {á}{{\'a}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1
+           {Ó}{{\'O}}1 {É}{{\'E}}1 {Á}{{\'A}}1 {Ú}{{\'U}}1 {Ñ}{{\~N}}1
+           {í}{{\'i}}1 {Í}{{\'I}}1
+           {¿}{{?}}1 {¡}{{!}}1
+}
+
+% --- Terminal (simulación de consola para figuras) ----------------------------
+\definecolor{termbg}{RGB}{40,44,52}
+\definecolor{termfg}{RGB}{220,220,220}
+\definecolor{termcmd}{RGB}{97,175,239}
+\definecolor{termout}{RGB}{171,178,191}
+\definecolor{termok}{RGB}{152,195,121}
+\lstdefinestyle{terminal}{
+  basicstyle=\small\sffamily\color{termfg},
+  backgroundcolor=\color{termbg},
+  rulecolor=\color{termbg},
+  frame=single,
+  breaklines=true,
+}
+
+% --- Listas, matemáticas y microtipografía -----------------------------------
+\RequirePackage{enumitem}
+\setlist{itemsep=2pt, parsep=0pt, topsep=6pt, partopsep=0pt}
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{microtype}
+
+% --- Índices ----------------------------------------------------------------
+\RequirePackage{tocloft}
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
+% Las secciones se numeran por capítulo (1.10, 2.7, ...), por lo que la
+% columna de números del índice debe ser más ancha para evitar desbordes.
+\setlength{\cftsecnumwidth}{2.8em}
+\setlength{\cftsubsecnumwidth}{3.8em}
+\setlength{\cftsubsubsecnumwidth}{4.6em}
+% Capítulos en el índice: entrada de nivel "part" en negrita, dos líneas,
+% con separación entre capítulos y número de página a la derecha sin puntos.
+\renewcommand{\cftpartfont}{\bfseries}
+\renewcommand{\cftpartpagefont}{\bfseries}
+\setlength{\cftbeforepartskip}{1.5em}
+% Títulos de los índices (Índice, Índice de tablas e Índice de figuras)
+% centrados.
+\renewcommand{\cfttoctitlefont}{\hfill\Large\bfseries}
+\renewcommand{\cftaftertoctitle}{\hfill}
+\renewcommand{\cftlottitlefont}{\hfill\Large\bfseries}
+\renewcommand{\cftafterlottitle}{\hfill}
+\renewcommand{\cftloftitlefont}{\hfill\Large\bfseries}
+\renewcommand{\cftafterloftitle}{\hfill}
+% Prefijo "FIGURA" / "TABLA" en las entradas de los índices de figuras y
+% tablas, coherente con las leyendas del cuerpo del documento. Se amplía el
+% ancho de la columna del número para acomodar el prefijo sin desbordes.
+\renewcommand{\cftfigpresnum}{\textbf{FIGURA }}
+\renewcommand{\cfttabpresnum}{\textbf{TABLA }}
+\renewcommand{\cftfigaftersnum}{:}
+\renewcommand{\cfttabaftersnum}{:}
+\setlength{\cftfignumwidth}{7em}
+\setlength{\cfttabnumwidth}{7em}
+
+% --- Índices: entradas alineadas a la izquierda y compactas ------------------
+% Cada entrada se compone con el texto a la izquierda y el número de página
+% alineado a la columna derecha (borde del texto). Se redefinen las macros
+% \l@... que lee \contentsline desde los archivos .toc/.lot/.lof.
+\makeatletter
+\newcommand{\entradaIndice}[2]{%
+  \par\noindent
+  \begingroup
+  \renewcommand{\numberline}[1]{##1\,}%
+  \makebox[\linewidth][l]{%
+    \parbox[b]{\dimexpr\linewidth-\@pnumwidth-4pt\relax}{\raggedright\strut#1\strut}%
+    \hspace{4pt}\hb@xt@\@pnumwidth{\hfil\strut#2}%
+  }%
+  \endgroup
+  \par}
+% Variante para figuras y tablas: el número se imprime con dos puntos y un
+% espacio (FIGURA 1: <texto> / TABLA 1: <texto>), como en las leyendas.
+\newcommand{\entradaIndiceNum}[2]{%
+  \par\noindent
+  \begingroup
+  \renewcommand{\numberline}[1]{##1:\,}%
+  \makebox[\linewidth][l]{%
+    \parbox[b]{\dimexpr\linewidth-\@pnumwidth-4pt\relax}{\raggedright\strut#1\strut}%
+    \hspace{4pt}\hb@xt@\@pnumwidth{\hfil\strut#2}%
+  }%
+  \endgroup
+  \par}
+\renewcommand*\l@part[2]{%
+  \addvspace{1em}%
+  \entradaIndice{\textbf{#1}}{\textbf{#2}}}
+\renewcommand*\l@section[2]{\entradaIndice{#1}{#2}}
+\renewcommand*\l@subsection[2]{\entradaIndice{#1}{#2}}
+\renewcommand*\l@subsubsection[2]{\entradaIndice{#1}{#2}}
+\renewcommand*\l@table[2]{\entradaIndiceNum{\textbf{TABLA }\ignorespaces#1}{#2}}
+\renewcommand*\l@figure[2]{\entradaIndiceNum{\textbf{FIGURA }\ignorespaces#1}{#2}}
+\makeatother
+% Interlineado 1.5 y poco espacio entre entradas para los índices.
+\newcommand{\indicesCompactos}{%
+  \setstretch{1.5}%
+  \setlength{\parskip}{1pt}%
+}
+
+% --- Hipervínculos -----------------------------------------------------------
+\RequirePackage[colorlinks=true, linkcolor=black, urlcolor=blue, citecolor=black]{hyperref}
+
+% --- Referencias en formato APA (paquete apacite) ----------------------------
+\RequirePackage[natbibapa]{apacite}
+
+% --- Encabezado de capítulo ---------------------------------------------------
+% Uso interno de \caratulaCapitulo y de main.tex (Referencias/Anexos).
+% Muestra el nombre del capítulo en mayúsculas y, opcionalmente, el número de
+% capítulo (solo en la primera hoja del capítulo). Si el segundo argumento
+% viene vacío, se omite el número.
+\newcommand{\textoEncabezado}[2]{%
+  \parbox{\headwidth}{\raggedleft
+    \setstretch{1}%
+    \textbf{#1}%
+    \\[-6pt]{\rule{\headwidth}{0.4pt}}%
+    \if\relax\detokenize{#2}\relax\else\\[2pt]\textbf{#2}\fi
+  }%
+}
+\newcommand{\encabezadoCapitulo}[2]{%
+  \fancyhead[C]{\textoEncabezado{#1}{#2}}%
+}
+
+% --- Carátula de capítulo (1 hoja completa) -----------------------------------
+% Uso: \caratulaCapitulo{CAP\'ITULO I}{INTRODUCCI\'ON}
+% Cada capítulo comienza con una página de presentación que ocupa una hoja
+% completa. La carátula no muestra número de página ni se cuenta dentro de la
+% enumeración (el contador se decrementa tras su salida).
+% Las secciones se numeran por capítulo (1.1, 1.2 ... y 2.1, 2.2 ...).
+% El encabezado muestra el nombre del capítulo en todas las hojas y el número
+% de capítulo únicamente en la primera hoja posterior a la carátula.
+\newcounter{capitulo}
+\renewcommand{\thesection}{\arabic{capitulo}.\arabic{section}}
+% Los anclajes (destinos) de hyperref para los marcadores del PDF deben incluir
+% el capítulo igual que los títulos impresos; si no, los capítulos II y III
+% reutilizan los mismos identificadores del capítulo I y el esquema del PDF
+% se corta (avisos "destination ... duplicate ignored").
+\renewcommand{\theHsection}{\arabic{capitulo}.\arabic{section}}
+\renewcommand{\theHsubsection}{\theHsection.\arabic{subsection}}
+\renewcommand{\theHsubsubsection}{\theHsubsection.\arabic{subsubsection}}
+\newcommand{\caratulaCapitulo}[2]{%
+  \clearpage
+  \refstepcounter{capitulo}%
+  \setcounter{section}{0}%
+  \pdfbookmark[0]{#1:\ #2}{capitulo.\arabic{capitulo}}%
+  \addtocontents{toc}{%
+    \protect\contentsline{part}{#1\protect\\#2}{\thepage}{\@currentHref}%
+  }%
+  \encabezadoCapitulo{#2}{}%
+  \fancypagestyle{primeraCap}{%
+    \fancyhf{}%
+    \fancyfoot[R]{\thepage}%
+    \fancyhead[C]{\textoEncabezado{#2}{#1}}%
+    \renewcommand{\headrulewidth}{0pt}%
+    \renewcommand{\footrulewidth}{0.4pt}%
+  }%
+  \thispagestyle{empty}%
+  \begin{center}
+    \vspace*{6.2cm}
+    {\bfseries\Huge #1 \par}
+    \vspace{1.7cm}
+    {\bfseries\LARGE #2 \par}
+  \end{center}
+  \clearpage
+  \addtocounter{page}{-1}%
+  \thispagestyle{primeraCap}%
+}
+
+\endinput

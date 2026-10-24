@@ -1,0 +1,46 @@
+% ============================================================================
+%  CAPÍTULO II: OBJETIVOS, ALCANCE Y LÍMITES
+% ============================================================================
+
+\section{Objetivos del trabajo}
+
+\subsection{Objetivo general}
+
+Implementar, sobre la instalaci\'on de \textbf{Debian 12 (Bookworm)} del
+servidor \texttt{dc1}, el \textbf{DNS del dominio} \texttt{sudoers.lan}
+administrado por el Controlador de Dominio de \textbf{Samba 4} (zona
+autoritativa y registros de descubrimiento) y un \textbf{servidor web} basado
+en \textbf{Nginx} que publique el portal del proyecto y act\'ue como
+\textit{proxy inverso} de los servicios de la intranet, accesible por nombre
+de dominio y con cifrado \textbf{HTTPS} desde cualquier estaci\'on de la red.
+
+\subsection{Objetivos espec\'ificos}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item Confirmar que el DC de \textbf{Samba 4} sirve como \textbf{DNS
+        autoritativo} del dominio: zona \texttt{sudoers.lan} con el backend
+        \textbf{SAMBA\_INTERNAL}, registros A de los servicios y registros
+        SRV de descubrimiento (LDAP, Kerberos).
+  \item Crear los \textbf{registros A} de los servicios publicados
+        (\texttt{web}, \texttt{www}, \texttt{print}, \texttt{portainer},
+        \texttt{joaquin}, \texttt{david}, \texttt{nicolas}) apuntando al
+        servidor \texttt{192.168.0.2}, de forma idempotente mediante el
+        script \texttt{dc/dns-records.sh} y \texttt{samba-tool dns}.
+  \item Configurar el \textbf{reenv\'io hacia Internet} (\textit{forwarder})
+        hacia el router \texttt{192.168.0.1} para que el mismo DNS resuelva
+        nombres externos.
+  \item Desplegar \textbf{Nginx} como contenedor Docker con el portal
+        est\'atico de la intranet y los \textit{virtual hosts} de
+        \texttt{sudoers.lan}, \texttt{print.sudoers.lan} y
+        \texttt{portainer.sudoers.lan}.
+  \item Implementar \textbf{HTTPS} con \textbf{CA interna} y certificado
+        \textit{wildcard} \texttt{*.sudoers.lan}, con redirecci\'on autom\'atica
+        de HTTP (80) a HTTPS (443).
+  \item Exponer por el \textit{proxy} los \textbf{subdominios de los equipos}
+        de los administradores (\texttt{david.sudoers.lan},
+        \texttt{nicolas.sudoers.lan}) hacia las m\'aquinas
+        \texttt{192.168.0.51:8080} y \texttt{192.168.0.52:8080}.
+  \item Validar el conjunto con pruebas de resoluci\'on (\texttt{dig},
+        \texttt{samba-tool dns query}) y de acceso web (\texttt{curl},
+        navegador), desde el propio servidor y desde un cliente de la red.
+\end{enumerate}

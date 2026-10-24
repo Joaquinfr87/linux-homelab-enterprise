@@ -1,50 +1,42 @@
 % ============================================================================
-%  DOCUMENTO PRINCIPAL — Actividad 8: Configuración DNS con servidor WEB
+%  PLANTILLA DE INFORME — Universidad Privada Domingo Savio
 %  ----------------------------------------------------------------------------
-%  Aquí SOLO se integran los módulos. No se escribe contenido ni formato aquí.
-%
 %  Regla de oro del proyecto:
-%    - formato/preambulo.sty  -> toda la configuración y paquetes (APA + Arial)
-%    - formato/portada.tex    -> portada (datos institucionales)
-%    - contenido/*.tex        -> el contenido real del informe
-%    - anexos/*.tex           -> material complementario
+%    - formato/datos-institucion.sty -> datos compartidos (institución, logo)
+%    - formato/preambulo.sty         -> toda la configuración (APA + Arial)
+%    - formato/portada.tex           -> portada (datos institucionales)
+%    - formato/referencias.bib       -> bibliografía BibTeX
+%    - contenido/*.tex               -> el contenido real del informe
+%    - anexos/*.tex                  -> material complementario
+%    - main.tex                      -> integración + datos del documento
 %
-%  Para compilar (desde latex/a8/):
-%    pdflatex main && bibtex main && pdflatex main && pdflatex main
-%  o directamente: make
+%  Compilar (desde la raíz de esta carpeta):
+%    make
 % ============================================================================
 
 \documentclass[12pt,a4paper]{article}
 
-% --- Carga de la configuración de formato (APA + Arial) ---------------------
 \usepackage{formato/preambulo}
+\usepackage{formato/datos-institucion}
 
 % ============================================================================
-%  DATOS DEL DOCUMENTO  (editar aquí)
+%  DATOS DEL DOCUMENTO  (editar aquí en cada informe)
 % ============================================================================
-\newcommand{\tituloDocumento}{Configuraci\'on de DNS (Samba AD DC) y Servidor WEB (Nginx) en Linux con Debian}
+\newcommand{\tituloDocumento}{A8. Informe: Herramientas de monitoreo para la defensa}
 \newcommand{\equipo}{Grupo 1 Sudoers}
 \newcommand{\integrantes}{%
   Joaquin Alessandro Felipez Rojas \par
   Nicolas Sebastian Reguerin Meneses \par
   David Willy Cruz Huanca}
-\newcommand{\universidad}{Universidad Privada Domingo Savio}
-\newcommand{\facultad}{Facultad de Ingenier\'ia}
-\newcommand{\carrera}{Ingenier\'ia en Sistemas}
 \newcommand{\asignatura}{Taller de Sistemas Operativos II}
 \newcommand{\docente}{Jose Abraham Mita Huanca}
-\newcommand{\ciudad}{Cochabamba--Bolivia}
-\newcommand{\fechaEntrega}{25/09/2026}
+\newcommand{\fechaEntrega}{24/10/2026}
 
 \begin{document}
 
-% --- Numeración: romano antes del Capítulo I, arábigo desde el Capítulo I ---
 \pagenumbering{roman}
-
-% --- Portada (no muestra número y no cuenta: el entorno titlepage parte de 1)
 \input{formato/portada}
 
-% --- Índices ----------------------------------------------------------------
 \newpage
 {\indicesCompactos\tableofcontents}
 \newpage
@@ -53,28 +45,22 @@
 {\indicesCompactos\listoffigures}
 \clearpage
 
-% --- Cambio a numeración arábiga para el contenido principal -------------
-\clearpage
 \pagenumbering{arabic}
 
-% ============================================================================
-%  CONTENIDO  (un capítulo con su carátula y un archivo por sección)
-% ============================================================================
-
 % --- CAPÍTULO I --------------------------------------------------------------
-\caratulaCapitulo{CAP\'ITULO I}{INTRODUCCI\'ON}
+\caratulaCapitulo{CAPÍTULO I}{INTRODUCCIÓN}
 \input{contenido/01-introduccion}
 
 % --- CAPÍTULO II -------------------------------------------------------------
-\caratulaCapitulo{CAP\'ITULO II}{OBJETIVOS, ALCANCE Y L\'IMITES}
+\caratulaCapitulo{CAPÍTULO II}{OBJETIVOS, ALCANCE Y LÍMITES}
 \input{contenido/02-objetivos}
 \input{contenido/03-alcance}
 
 % --- CAPÍTULO III ------------------------------------------------------------
-\caratulaCapitulo{CAP\'ITULO III}{DESARROLLO DEL TRABAJO}
+\caratulaCapitulo{CAPÍTULO III}{DESARROLLO DEL TRABAJO}
 \input{contenido/04-desarrollo}
 
-% --- CONCLUSIONES ---------------------------------------------------------
+% --- CONCLUSIONES ------------------------------------------------------------
 \newpage
 \encabezadoCapitulo{CONCLUSIONES}{}
 \addcontentsline{toc}{part}{CONCLUSIONES}
@@ -90,7 +76,7 @@
 \input{contenido/05-conclusiones}
 \endgroup
 
-% --- Referencias (APA) ------------------------------------------------------
+% --- Referencias -------------------------------------------------------------
 \newpage
 \encabezadoCapitulo{REFERENCIAS}{}
 \addcontentsline{toc}{part}{REFERENCIAS}
@@ -98,7 +84,7 @@
 \nocite{*}
 \bibliography{formato/referencias}
 
-% --- Anexos (material complementario, tras las referencias) ------------------
+% --- Anexos -------------------------------------------------------------------
 % \newpage
 % \encabezadoCapitulo{ANEXOS}{}
 % \pdfbookmark[0]{ANEXOS}{anexos}%

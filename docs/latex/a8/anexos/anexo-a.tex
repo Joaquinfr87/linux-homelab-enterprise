@@ -1,25 +1,94 @@
 % ============================================================================
-%  ANEXO A: [TÍTULO DEL ANEXO]
-%  Plantilla: copiar para cada anexo (anexo-a, anexo-b, ...).
+%  ANEXO A: CÓDIGO Y FIRMAS DE SEGURIDAD DEL LABORATORIO
 % ============================================================================
 
-\section{Anexo A: [T\'itulo del anexo]}
+\section{Anexo A: Archivo de Firmas de Seguridad (homelab.rules)}
 
-[Escribir el contenido del anexo aqu\'i.]
+A continuación se transcribe el conjunto de reglas personalizadas implementadas en el servidor \texttt{dc1} (\texttt{/etc/suricata/rules/homelab.rules}) para la detección de anomalías y bloqueo activo de intrusiones:
 
-% Ejemplo de tabla:
-% \begin{table}[H]
-%   \centering
-%   \caption{T\'itulo de la tabla}
-%   \contenidoConFuente{%
-%     \begin{tablaAPA}
-%       \begin{tabular}{@{}p{3.6cm}p{8.2cm}p{3.2cm}@{}}
-%         \toprule
-%         \textbf{Columna 1} & \textbf{Columna 2} & \textbf{Columna 3} \\
-%         \midrule
-%         Dato 1 & Dato 2 & Dato 3 \\
-%         \bottomrule
-%       \end{tabular}
-%     \end{tablaAPA}%
-%   }{Elaboraci\'on propia.}
-% \end{table}
+\begin{lstlisting}[language=bash]
+# ===================================================================
+# homelab.rules — Reglas personalizadas de IDS/IPS para dc1 (Sudoers LAN)
+# ===================================================================
+
+# 1. PRUEBAS Y VALIDACION DE LABORATORIO (IDS vs IPS)
+drop tcp any any -> $HOME_NET any (msg:"[HOMELAB-IPS-DROP] Bloqueo en tiempo real: Firma de ataque detectada (TEST_EXPLOIT_PAYLOAD_DROP)"; flow:to_server,established; content:"TEST_EXPLOIT_PAYLOAD_DROP"; nocase; classtype:attempted-admin; sid:9000001; rev:1;)
+drop tcp any any -> $HOME_NET $HTTP_PORTS (msg:"[HOMELAB-IPS-DROP] Bloqueo HTTP: Carga maliciosa en aplicacion web (MALICIOUS_SIMULATION_ATTACK)"; flow:to_server,established; content:"MALICIOUS_SIMULATION_ATTACK"; nocase; classtype:web-application-attack; sid:9000002; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Sonda de prueba detectada (TEST_PROBE_ALERT_ONLY)"; flow:to_server,established; content:"TEST_PROBE_ALERT_ONLY"; nocase; classtype:misc-activity; sid:9000010; rev:1;)
+alert icmp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Ping ICMP Echo Request recibido en dc1"; itype:8; classtype:misc-activity; sid:9000011; rev:1;)
+
+# 2. DETECCION DE ESCANEOS Y RECONOCIMIENTO DE RED (NIDS)
+alert tcp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Reconocimiento de red: Escaneo TCP NULL detectado"; flags:0; classtype:attempted-recon; sid:9000020; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Reconocimiento de red: Escaneo TCP XMAS detectado"; flags:FPU; classtype:attempted-recon; sid:9000021; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Posible escaneo de puertos SYN Scan en progreso"; flags:S,12; threshold:type both, track by_src, count 25, seconds 3; classtype:attempted-recon; sid:9000022; rev:1;)
+
+# 3. PROTECCION DE SERVICIOS CRITICOS (Active Directory / Samba DC)
+alert tcp any any -> $HOME_NET 88 (msg:"[HOMELAB-IDS-ALERT] Sondeo continuo o sospechoso al servicio Kerberos del AD DC"; flags:S; threshold:type both, track by_src, count 15, seconds 5; classtype:attempted-recon; sid:9000030; rev:1;)
+alert tcp any any -> $HOME_NET 389 (msg:"[HOMELAB-IDS-ALERT] Multiples intentos de conexion a LDAP (posible enumeracion de cuentas AD)"; flags:S; threshold:type both, track by_src, count 20, seconds 5; classtype:attempted-recon; sid:9000031; rev:1;)
+alert tcp any any -> $HOME_NET 445 (msg:"[HOMELAB-IDS-ALERT] Trafico SMB repetitivo detectado hacia dc1 (posible sondeo de shares)"; flags:S; threshold:type both, track by_src, count 20, seconds 10; classtype:suspicious-login; sid:9000032; rev:1;)
+
+# 4. ACCESO Y FUERZA BRUTA SSH (Puerto 22)
+alert tcp any any -> $HOME_NET 22 (msg:"[HOMELAB-IDS-ALERT] Intento de conexion SSH entrante a dc1"; flags:S; classtype:suspicious-login; sid:9000040; rev:1;)
+alert tcp any any -> $HOME_NET 22 (msg:"[HOMELAB-IDS-ALERT] ALERTA CRITICA: Posible ataque de fuerza bruta SSH contra dc1"; flags:S; threshold:type both, track by_src, count 6, seconds 30; classtype:attempted-admin; sid:9000041; rev:1;)
+
+# 5. PROTECCION DE APLICACIONES WEB (Nginx / Intranet / Portal)
+alert tcp any any -> $HOME_NET $HTTP_PORTS (msg:"[HOMELAB-IDS-ALERT] Ataque Web: Patron de Inyeccion SQL (UNION SELECT)"; flow:to_server,established; content:"UNION"; nocase; content:"SELECT"; nocase; distance:0; classtype:web-application-attack; sid:9000050; rev:1;)
+alert tcp any any -> $HOME_NET $HTTP_PORTS (msg:"[HOMELAB-IDS-ALERT] Ataque Web: Intento de Path Traversal hacia /etc/passwd"; flow:to_server,established; content:"/etc/passwd"; nocase; classtype:web-application-attack; sid:9000051; rev:1;)
+alert tcp any any -> $HOME_NET $HTTP_PORTS (msg:"[HOMELAB-IDS-ALERT] Ataque Web: Intento de explotacion Log4Shell (jndi:ldap)"; flow:to_server,established; content:"${jndi:"; nocase; classtype:web-application-attack; sid:9000052; rev:1;)
+\end{lstlisting}
+
+\newpage
+\section{Anexo B: Script Alternador entre Modos IDS e IPS (ips-toggle.sh)}
+
+A continuación se presenta el código de la utilidad \texttt{server/suricata/ips-toggle.sh} desarrollada para alternar de forma transparente el acoplamiento con \texttt{nftables}:
+
+\begin{lstlisting}[language=bash]
+#!/bin/bash
+# ips-toggle.sh — Alternador entre Modo IDS y Modo IPS
+set -euo pipefail
+MODE="${1:-}"
+
+has_nft_queue() {
+    nft list chain inet filter input 2>/dev/null | grep -q "queue num 0"
+}
+
+remove_nft_queue() {
+    if has_nft_queue; then
+        local handles
+        handles="$(nft -a list chain inet filter input 2>/dev/null | grep "queue num 0" | awk '{print $NF}')"
+        for h in $handles; do
+            nft delete rule inet filter input handle "$h" 2>/dev/null || true
+        done
+    fi
+}
+
+add_nft_queue() {
+    if ! has_nft_queue; then
+        nft insert rule inet filter input queue num 0 bypass
+    fi
+}
+
+case "$MODE" in
+    --ids)
+        remove_nft_queue
+        sed -i 's|SURICATA_OPTS=.*|SURICATA_OPTS="-i eno1"|' /etc/default/suricata
+        systemctl restart suricata
+        echo "Modo IDS activo (AF_PACKET pasivo en eno1)"
+        ;;
+    --ips)
+        add_nft_queue
+        sed -i 's|SURICATA_OPTS=.*|SURICATA_OPTS="-q 0"|' /etc/default/suricata
+        systemctl restart suricata
+        echo "Modo IPS activo (NFQUEUE 0 inline en nftables)"
+        ;;
+    --status)
+        echo "Estado de Suricata:"
+        systemctl is-active suricata
+        ;;
+    *)
+        echo "Uso: sudo bash $0 {--ids | --ips | --status}"
+        exit 1
+        ;;
+esac
+\end{lstlisting}

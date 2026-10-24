@@ -1,128 +1,69 @@
 % ============================================================================
-%  CAPÍTULO I: INTRODUCCIÓN
+%  CAPÍTULO I: INTRODUCCIÓN Y FUNDAMENTOS CONCEPTUALES
 % ============================================================================
 
 \section{Introducción}
 
-En toda red corporativa existe un requisito silencioso pero innegociable:
-traducir los nombres que los usuarios recuerdan (\texttt{web.sudoers.lan}) a
-las direcciones IP que las m\'aquinas entienden (\texttt{192.168.0.2}). Sin
-este puente, ni el navegador de un empleado podr\'ia abrir la p\'agina del
-proyecto, ni el servidor de correo podr\'ia entregar un mensaje, ni una
-impresora de red ser\'ia localizable. El servicio que materializa este puente
-es el \textbf{DNS} (\textit{Domain Name System}) \citep{rfc1035}, y sobre
-\'el se apoya la segunda pieza: el \textbf{servidor web} que publica los
-contenidos que los clientes consumen a diario.
+En el panorama contemporáneo de la seguridad informática, las redes corporativas se enfrentan a un vector de amenazas cada vez más sofisticado, dinámico y diversificado. La noción tradicional de un perímetro de seguridad estático, delimitado exclusivamente por cortafuegos de filtrado de paquetes convencional, ha demostrado ser insuficiente para contener técnicas avanzadas de intrusión, movimientos laterales no autorizados y ataques a nivel de capa de aplicación \citep{rfc4732}. En este contexto, la visibilidad del tráfico y la capacidad de detección temprana constituyen el pilar fundamental sobre el cual se sustenta la defensa en profundidad de cualquier infraestructura de Tecnologías de la Información (TI).
 
-En la infraestructura de la organizaci\'on, el servidor de correo, el portal,
-la impresi\'on y el panel de gesti\'on no se alcanzan tecleando IPs: se
-alcanzan por \textbf{nombre} (\texttt{web.sudoers.lan},
-\texttt{print.sudoers.lan}, \texttt{portainer.sudoers.lan}). Este cap\'itulo
-introduce la problem\'atica, el prop\'osito de la actividad y el marco
-te\'orico m\'inimo necesario para comprender el desarrollo del trabajo.
+El presente informe técnico aborda el estudio, evaluación e implementación de las herramientas de monitoreo y defensa perimetral e interna basadas en software de código abierto (*Open Source*). Específicamente, se analizan los principios rectores de los Sistemas de Detección de Intrusos (\textit{Intrusion Detection Systems}, IDS) y los Sistemas de Prevención de Intrusos (\textit{Intrusion Prevention Systems}, IPS), estableciendo una comparativa técnica rigurosa entre las dos plataformas más consolidadas de la industria: \textbf{Suricata} y \textbf{Snort 3}. Asimismo, se formula una propuesta arquitectónica integral orientada a una red empresarial representativa, respaldada por la experiencia empírica y despliegue real en el entorno corporativo de la organización bajo la subred \texttt{192.168.0.0/24}.
 
-\subsection{Problem\'atica}
+\subsection{Problemática de Seguridad en Redes Corporativas}
 
-La red del laboratorio es un \'unico servidor Debian que concentra todos los
-servicios de la organizaci\'on (identidad, archivos, correo, web) sobre una
-sola red plana \texttt{192.168.0.0/24}. En ese escenario se plantean tres
-carencias:
+Las infraestructuras de red modernas concentran servicios críticos de misión empresarial tales como controladores de dominio, autenticación centralizada (Active Directory, Kerberos, LDAP), servicios de archivos en red (SMB/CIFS), plataformas de mensajería electrónica y aplicaciones web intranet. Esta concentración de recursos genera escenarios vulnerables ante diversos patrones de ataque:
 
 \begin{itemize}
-  \item \textbf{Resoluci\'on de nombres ausente o manual:} sin un servidor
-        DNS propio, cada cliente debe memorizar direcciones IP o depender de
-        un archivo \texttt{/etc/hosts} local, esquema que no escala y que
-        impide que un mismo nombre sea resuelto de forma consistente en toda
-        la red.
-  \item \textbf{Acceso a los servicios sin nombres amigables:} los recursos
-        de red solo se alcanzan por IP, lo que obliga a los usuarios a
-        recordar numeraciones y dificulta la administraci\'on y el crecimiento
-        de la infraestructura.
-  \item \textbf{Ausencia de una puerta \'unica y segura hacia la web:} sin un
-        servidor web que concentre y publique los servicios por nombre, cada
-        aplicaci\'on tendr\'ia que exponer su propio puerto, sin una capa de
-        cifrado ni un punto \'unico de control.
+  \item \textbf{Reconocimiento y escaneo de puertos:} Actores hostiles ejecutan técnicas de barrido sigiloso (como escaneos TCP SYN, NULL o XMAS) destinadas a cartografiar los puertos abiertos y enumerar las versiones de los servicios expuestos.
+  \item \textbf{Ataques contra servicios de identidad:} Intentos reiterados de fuerza bruta, ataques de denegación de servicio distribuido o técnicas avanzadas de manipulación de tickets en Kerberos (como \textit{Kerberoasting}) orientadas al Controlador de Dominio.
+  \item \textbf{Explotación web y ejecución de comandos:} Inyecciones de sentencias estructuradas (SQLi), vulnerabilidades de inclusión remota de archivos (*Path Traversal*) y ejecución remota de código en aplicativos web internos.
+  \item \textbf{Falta de visibilidad de tráfico Este-Oeste:} Una vez que un atacante o software malicioso penetra el borde de la red, suele desplazarse libremente entre estaciones de trabajo y servidores debido a la ausencia de inspección profunda de paquetes en la red interna.
 \end{itemize}
 
-La soluci\'on a estas carencias consiste en aprovechar un \'unico servidor
-\textbf{Debian 12} que ya funciona como Controlador de Dominio y desplegar
-sobre \'el dos piezas complementarias: el \textbf{DNS autoritativo} del
-dominio, servido por el propio \textbf{Samba 4} (backend
-\textbf{SAMBA\_INTERNAL}), y un \textbf{servidor web} basado en \textbf{Nginx}
-que act\'ua como \textit{proxy inverso} de toda la intranet y que se publica
-por nombre de dominio con \textbf{HTTPS}.
+Frente a esta problemática, la implementación de tecnologías IDS/IPS permite no solo auditar el comportamiento del tráfico en tiempo real, sino también neutralizar de forma automatizada las cargas maliciosas antes de que comprometan la confidencialidad, integridad y disponibilidad de los activos de la organización.
 
-\subsection{Prop\'osito de la actividad}
+\subsection{Conceptos Fundamentales: IDS vs IPS}
 
-La Actividad 8 tiene como prop\'osito configurar, sobre GNU/Linux con la
-distribuci\'on \textbf{Debian 12}, el \textbf{DNS del dominio}
-\texttt{sudoers.lan} administrado por el Controlador de Dominio de
-\textbf{Samba} (zona autoritativa directa, registros de descubrimiento SRV y
-reenv\'io hacia Internet) y el \textbf{servidor web} de la organizaci\'on
-basado en \textbf{Nginx}, desplegado como contenedor Docker, que publique el
-portal del proyecto y act\'ue como \textit{proxy inverso} de los servicios
-publicados por nombre, con cifrado \textbf{HTTPS} mediante una CA interna.
+De acuerdo con el estándar NIST SP 800-94 emitido por el Instituto Nacional de Estándares y Tecnología \citep{nist_idps_2007}, las tecnologías de detección y prevención de intrusos se definen como mecanismos automatizados de supervisión de eventos ocurridos en sistemas computacionales o redes de datos, cuyo fin primordial es analizar señales reveladoras de incidentes de seguridad y violaciones a las políticas operativas.
 
-Con ello se busca reproducir, en un entorno acad\'emico, la arquitectura de
-resoluci\'on de nombres y de publicaci\'on de contenido que sostiene a una
-organizaci\'on real.
+\subsubsection{Sistemas de Detección de Intrusos (IDS)}
+Un **IDS** es un sistema diseñado para operar de manera **pasiva** o fuera de banda (*Out-of-Band*). Esto implica que el dispositivo o sensor no se ubica en la trayectoria directa de comunicación por donde transitan los paquetes entre el emisor y el receptor, sino que recibe una réplica exacta del flujo de datos mediante mecanismos de duplicación de tráfico, tales como puertos espejo (*Port Mirroring / SPAN*) en conmutadores de red o derivadores ópticos/eléctricos (*TAPs de red*).
 
-\subsection{Marco te\'orico}
+El principio de actuación de un IDS consiste en decodificar, reconstruir flujos y contrastar los paquetes contra un corpus de firmas de ataques conocidos o desviaciones estadísticas respecto a un perfil de normalidad preestablecido. Al detectar una anomalía, el IDS emite una alerta estructurada hacia registros de auditoría (*logs*), servidores de correo o plataformas de gestión de eventos e información de seguridad (\textit{Security Information and Event Management}, SIEM). Sin embargo, el IDS **no tiene la facultad de modificar, frenar ni destruir el paquete en tránsito**, por lo que el ataque alcanza inevitablemente su destino a la par de la notificación.
 
-\subsubsection{El sistema de nombres de dominio (DNS)}
+\subsubsection{Sistemas de Prevención de Intrusos (IPS)}
+Un **IPS**, en contraste fundamental, es un dispositivo o servicio activo que opera **en línea** (*In-line*). El tráfico completo de la red debe ingresar obligatoriamente a través del motor de inspección antes de que el kernel decida su reenvío hacia la aplicación destinataria o hacia otra interfaz de red. En el contexto de sistemas operativos GNU/Linux, esta capacidad se materializa a través de colas de paquetes en espacio de kernel, como el subsistema **NFQUEUE** gestionado por el cortafuegos del sistema (\texttt{nftables} o \texttt{iptables}) \citep{netfilter_nfqueue_2023}.
 
-El DNS es un servicio distribuido y jer\'arquico que traduce nombres de
-dominio a direcciones IP y viceversa \citep{rfc1034}. En un dominio de
-Active Directory (AD), el DNS no es un accesorio: \textbf{es el transporte del
-directorio}. Los clientes lo consultan para descubrir d\'onde est\'a el LDAP,
-el Kerberos o el propio Controlador de Dominio mediante registros
-\textbf{SRV} \citep{rfc2782}. Por eso un AD DC debe ser autoritativo de su
-zona de dominio \citep{msft_activedirectory}.
+Cuando el motor de firmas del IPS identifica una coincidencia calificada con la acción de bloqueo (\texttt{drop}), el sistema intercepta el paquete en memoria y emite una instrucción al kernel para que sea descartado de manera inmediata, impidiendo físicamente que llegue al zócalo de la aplicación víctima. Adicionalmente, el IPS puede ordenar el reinicio selectivo de la sesión TCP mediante el envío de paquetes de restablecimiento (\texttt{reject} con flag RST) o bloquear dinámicamente la dirección IP de origen en la tabla del firewall.
 
-\textbf{Registros m\'as relevantes para esta actividad:}
-\begin{itemize}
-  \item \textbf{A:} asocia un nombre de host a una direcci\'on IPv4
-        (\texttt{web.sudoers.lan. IN A 192.168.0.2}).
-  \item \textbf{SRV:} indica qu\'e servidor atiende qu\'e servicio en qu\'e
-        puerto (\texttt{\_ldap.\_tcp} $\rightarrow$ \texttt{dc1}:389).
-  \item \textbf{NS y SOA:} declaran la autoridad y la vigencia de la zona.
-  \item \textbf{PTR:} asocia una direcci\'on IPv4 a un nombre (zona inversa).
-  \item \textbf{CNAME:} crea un alias de otro nombre
-        (\texttt{www IN CNAME web}).
-\end{itemize}
-
-\subsubsection{El DNS integrado de Samba (SAMBA\_INTERNAL)}
-
-Samba 4 integra en un \'unico daemon los servicios de Active Directory:
-LDAP, Kerberos, SMB y el \textbf{DNS} \citep{sambateam2024}. Con el backend
-\textbf{SAMBA\_INTERNAL} la zona \texttt{sudoers.lan} la gestiona
-autom\'aticamente el propio DC: los clientes y los administradores la
-actualizan con \texttt{samba-tool dns} (o con las herramientas de AD de
-Windows), y la zona se reescribe din\'amicamente sin archivos de zona
-manuales como los que usa BIND 9 standalone.
-
-\subsubsection{El servidor web y el proxy inverso}
-
-Un servidor web atiende peticiones HTTP y entrega documentos a los
-navegadores. En el proyecto se utiliza \textbf{Nginx} \citep{nginxDocs},
-desplegado como contenedor Docker, con una doble funci\'on: servir el
-\textbf{portal est\'atico} de la intranet y actuar como \textbf{proxy inverso}
-que enruta cada nombre \texttt{*.sudoers.lan} hacia el servicio correcto. Al
-proxy llegan todas las peticiones y \'el las reparte; adem\'as \textbf{termina
-el TLS}: el cifrado (HTTPS) se aplica en el punto \'unico de entrada y los
-servicios internos se comunican entre s\'i por HTTP.
-
-\subsubsection{Infraestructura del laboratorio}
+\subsubsection{Dilemas Operativos: Falsos Positivos vs Falsos Negativos}
+La elección entre operar un sensor en modo IDS o en modo IPS conlleva un compromiso crítico de ingeniería:
 
 \begin{itemize}
-  \item Servidor \'unico: \textbf{Debian 12}, hostname \texttt{dc1}, IP fija
-        \texttt{192.168.0.2}.
-  \item DNS del dominio: \textbf{Samba 4 AD DC} (backend SAMBA\_INTERNAL),
-        puerto 53; zona autoritativa \texttt{sudoers.lan}.
-  \item Servidor web: \textbf{Nginx} en contenedor Docker, puertos 80/443;
-        resolver del dominio \texttt{sudoers.lan}.
-  \item Red: \texttt{192.168.0.0/24}; DHCP (Kea) entrega a los clientes el
-        DNS \texttt{192.168.0.2} y el dominio \texttt{sudoers.lan}.
-  \item Clientes: estaciones GNU/Linux y Windows unidas al dominio que
-        consultan el DNS del DC y acceden al sitio por nombre.
+  \item \textbf{Falsos Positivos en IPS:} Si una regla de detección clasifica erróneamente una transacción de negocio legítima como una amenaza y aplica una acción \texttt{drop}, el IPS causa directamente una **denegación de servicio autoinfligida** (*Self-inflicted Denial of Service*), interrumpiendo las operaciones de la empresa.
+  \item \textbf{Falsos Negativos en IDS:} Si una amenaza evade la firma o no es detectada a tiempo por un IDS pasivo, el ataque se consuma contra el servidor víctima sin ninguna barrera que impida el acceso no autorizado.
+  \item \textbf{Latencia de Procesamiento:} Mientras que un IDS introduce cero milisegundos de latencia en la transmisión de datos del usuario, el IPS debe ensamblar los paquetes TCP, normalizar los protocolos y analizar las firmas en tiempo real, lo que introduce un leve incremento en el tiempo de ida y vuelta (\textit{Round Trip Time}, RTT).
+  \item \textbf{Estrategias ante Fallos: Fail-Open vs Fail-Close:} Ante una saturación de memoria, caída de servicio o sobrecarga de CPU en el sensor, una arquitectura *Fail-Open* (implementada mediante la cláusula \texttt{bypass} en \texttt{nftables}) permite que el tráfico continúe fluyendo sin interrupción, mientras que un esquema *Fail-Close* corta absolutamente todo el tránsito de red para salvaguardar la confidencialidad a costa de la disponibilidad.
 \end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Comparativa Conceptual Exhaustiva entre IDS e IPS}
+\label{tab:comparativa-ids-ips}
+\contenidoConFuente{%
+  \begin{tablaAPA}
+  \begin{tabular}{L{2.8cm}L{5.8cm}L{5.8cm}}
+  \toprule
+  \textbf{Criterio} & \textbf{Sistemas de Detección (IDS)} & \textbf{Sistemas de Prevención (IPS)} \\
+  \midrule
+  \textbf{Posicionamiento} & Pasivo, fuera de banda (\textit{out-of-band}). Conexión a puerto SPAN o TAP. & Activo, en línea (\textit{in-line}). Tránsito obligatorio por el motor de filtrado. \\
+  \textbf{Intervención} & Solo lectura. No altera ni detiene los paquetes evaluados. & Lectura y control activo. Descarta, altera o resetea flujos (\texttt{drop}/\texttt{reject}). \\
+  \textbf{Impacto en Latencia} & Nulo (0 ms adicionales en la red operativa). & Ligero incremento dependiente de la complejidad del análisis de firmas. \\
+  \textbf{Riesgo Operativo} & Bajo. Los falsos positivos solo saturan los paneles de monitoreo. & Alto. Los falsos positivos provocan cortes de servicio a usuarios legítimos. \\
+  \textbf{Tiempo de Respuesta} & Reactivo (la alerta llega tras o durante la ejecución del ataque). & Proactivo (la carga maliciosa es neutralizada antes de alcanzar el servicio). \\
+  \textbf{Mecanismo en Linux} & Captura promiscua con zócalos \texttt{AF\_PACKET} o bibliotecas \texttt{libpcap}. & Intercepción en kernel con \texttt{NFQUEUE} y reglas directas de \texttt{nftables}. \\
+  \textbf{Resiliencia} & Si el proceso falla, la red continúa intacta y sin afectación. & Requiere modo \textit{Fail-Open / bypass} para evitar caída total de conectividad. \\
+  \bottomrule
+  \end{tabular}
+  \end{tablaAPA}%
+}{Elaboración propia con base en \cite{nist_idps_2007} y \cite{rfc2828}.}
+\end{table}

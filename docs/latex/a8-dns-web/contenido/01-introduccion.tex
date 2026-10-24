@@ -1,0 +1,128 @@
+% ============================================================================
+%  CAPÍTULO I: INTRODUCCIÓN
+% ============================================================================
+
+\section{Introducción}
+
+En toda red corporativa existe un requisito silencioso pero innegociable:
+traducir los nombres que los usuarios recuerdan (\texttt{web.sudoers.lan}) a
+las direcciones IP que las m\'aquinas entienden (\texttt{192.168.0.2}). Sin
+este puente, ni el navegador de un empleado podr\'ia abrir la p\'agina del
+proyecto, ni el servidor de correo podr\'ia entregar un mensaje, ni una
+impresora de red ser\'ia localizable. El servicio que materializa este puente
+es el \textbf{DNS} (\textit{Domain Name System}) \citep{rfc1035}, y sobre
+\'el se apoya la segunda pieza: el \textbf{servidor web} que publica los
+contenidos que los clientes consumen a diario.
+
+En la infraestructura de la organizaci\'on, el servidor de correo, el portal,
+la impresi\'on y el panel de gesti\'on no se alcanzan tecleando IPs: se
+alcanzan por \textbf{nombre} (\texttt{web.sudoers.lan},
+\texttt{print.sudoers.lan}, \texttt{portainer.sudoers.lan}). Este cap\'itulo
+introduce la problem\'atica, el prop\'osito de la actividad y el marco
+te\'orico m\'inimo necesario para comprender el desarrollo del trabajo.
+
+\subsection{Problem\'atica}
+
+La red del laboratorio es un \'unico servidor Debian que concentra todos los
+servicios de la organizaci\'on (identidad, archivos, correo, web) sobre una
+sola red plana \texttt{192.168.0.0/24}. En ese escenario se plantean tres
+carencias:
+
+\begin{itemize}
+  \item \textbf{Resoluci\'on de nombres ausente o manual:} sin un servidor
+        DNS propio, cada cliente debe memorizar direcciones IP o depender de
+        un archivo \texttt{/etc/hosts} local, esquema que no escala y que
+        impide que un mismo nombre sea resuelto de forma consistente en toda
+        la red.
+  \item \textbf{Acceso a los servicios sin nombres amigables:} los recursos
+        de red solo se alcanzan por IP, lo que obliga a los usuarios a
+        recordar numeraciones y dificulta la administraci\'on y el crecimiento
+        de la infraestructura.
+  \item \textbf{Ausencia de una puerta \'unica y segura hacia la web:} sin un
+        servidor web que concentre y publique los servicios por nombre, cada
+        aplicaci\'on tendr\'ia que exponer su propio puerto, sin una capa de
+        cifrado ni un punto \'unico de control.
+\end{itemize}
+
+La soluci\'on a estas carencias consiste en aprovechar un \'unico servidor
+\textbf{Debian 12} que ya funciona como Controlador de Dominio y desplegar
+sobre \'el dos piezas complementarias: el \textbf{DNS autoritativo} del
+dominio, servido por el propio \textbf{Samba 4} (backend
+\textbf{SAMBA\_INTERNAL}), y un \textbf{servidor web} basado en \textbf{Nginx}
+que act\'ua como \textit{proxy inverso} de toda la intranet y que se publica
+por nombre de dominio con \textbf{HTTPS}.
+
+\subsection{Prop\'osito de la actividad}
+
+La Actividad 8 tiene como prop\'osito configurar, sobre GNU/Linux con la
+distribuci\'on \textbf{Debian 12}, el \textbf{DNS del dominio}
+\texttt{sudoers.lan} administrado por el Controlador de Dominio de
+\textbf{Samba} (zona autoritativa directa, registros de descubrimiento SRV y
+reenv\'io hacia Internet) y el \textbf{servidor web} de la organizaci\'on
+basado en \textbf{Nginx}, desplegado como contenedor Docker, que publique el
+portal del proyecto y act\'ue como \textit{proxy inverso} de los servicios
+publicados por nombre, con cifrado \textbf{HTTPS} mediante una CA interna.
+
+Con ello se busca reproducir, en un entorno acad\'emico, la arquitectura de
+resoluci\'on de nombres y de publicaci\'on de contenido que sostiene a una
+organizaci\'on real.
+
+\subsection{Marco te\'orico}
+
+\subsubsection{El sistema de nombres de dominio (DNS)}
+
+El DNS es un servicio distribuido y jer\'arquico que traduce nombres de
+dominio a direcciones IP y viceversa \citep{rfc1034}. En un dominio de
+Active Directory (AD), el DNS no es un accesorio: \textbf{es el transporte del
+directorio}. Los clientes lo consultan para descubrir d\'onde est\'a el LDAP,
+el Kerberos o el propio Controlador de Dominio mediante registros
+\textbf{SRV} \citep{rfc2782}. Por eso un AD DC debe ser autoritativo de su
+zona de dominio \citep{msft_activedirectory}.
+
+\textbf{Registros m\'as relevantes para esta actividad:}
+\begin{itemize}
+  \item \textbf{A:} asocia un nombre de host a una direcci\'on IPv4
+        (\texttt{web.sudoers.lan. IN A 192.168.0.2}).
+  \item \textbf{SRV:} indica qu\'e servidor atiende qu\'e servicio en qu\'e
+        puerto (\texttt{\_ldap.\_tcp} $\rightarrow$ \texttt{dc1}:389).
+  \item \textbf{NS y SOA:} declaran la autoridad y la vigencia de la zona.
+  \item \textbf{PTR:} asocia una direcci\'on IPv4 a un nombre (zona inversa).
+  \item \textbf{CNAME:} crea un alias de otro nombre
+        (\texttt{www IN CNAME web}).
+\end{itemize}
+
+\subsubsection{El DNS integrado de Samba (SAMBA\_INTERNAL)}
+
+Samba 4 integra en un \'unico daemon los servicios de Active Directory:
+LDAP, Kerberos, SMB y el \textbf{DNS} \citep{sambateam2024}. Con el backend
+\textbf{SAMBA\_INTERNAL} la zona \texttt{sudoers.lan} la gestiona
+autom\'aticamente el propio DC: los clientes y los administradores la
+actualizan con \texttt{samba-tool dns} (o con las herramientas de AD de
+Windows), y la zona se reescribe din\'amicamente sin archivos de zona
+manuales como los que usa BIND 9 standalone.
+
+\subsubsection{El servidor web y el proxy inverso}
+
+Un servidor web atiende peticiones HTTP y entrega documentos a los
+navegadores. En el proyecto se utiliza \textbf{Nginx} \citep{nginxDocs},
+desplegado como contenedor Docker, con una doble funci\'on: servir el
+\textbf{portal est\'atico} de la intranet y actuar como \textbf{proxy inverso}
+que enruta cada nombre \texttt{*.sudoers.lan} hacia el servicio correcto. Al
+proxy llegan todas las peticiones y \'el las reparte; adem\'as \textbf{termina
+el TLS}: el cifrado (HTTPS) se aplica en el punto \'unico de entrada y los
+servicios internos se comunican entre s\'i por HTTP.
+
+\subsubsection{Infraestructura del laboratorio}
+
+\begin{itemize}
+  \item Servidor \'unico: \textbf{Debian 12}, hostname \texttt{dc1}, IP fija
+        \texttt{192.168.0.2}.
+  \item DNS del dominio: \textbf{Samba 4 AD DC} (backend SAMBA\_INTERNAL),
+        puerto 53; zona autoritativa \texttt{sudoers.lan}.
+  \item Servidor web: \textbf{Nginx} en contenedor Docker, puertos 80/443;
+        resolver del dominio \texttt{sudoers.lan}.
+  \item Red: \texttt{192.168.0.0/24}; DHCP (Kea) entrega a los clientes el
+        DNS \texttt{192.168.0.2} y el dominio \texttt{sudoers.lan}.
+  \item Clientes: estaciones GNU/Linux y Windows unidas al dominio que
+        consultan el DNS del DC y acceden al sitio por nombre.
+\end{itemize}

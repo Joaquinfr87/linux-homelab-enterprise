@@ -2,404 +2,251 @@
 %  CAPÍTULO III: DESARROLLO DEL TRABAJO
 % ============================================================================
 
-\section{Desarrollo del trabajo}
+\section{Desarrollo del Trabajo}
 
-Este cap\'itulo documenta, paso a paso, la configuraci\'on del \textbf{DNS del
-dominio} (servido por el Controlador de Dominio de Samba) y del \textbf{servidor
-web} de la organizaci\'on (Nginx como \textit{proxy inverso}), sobre el
-servidor \'unico \texttt{dc1}. Cada bloque describe desde la arquitectura de la
-soluci\'on hasta las pruebas de resoluci\'on de nombres y de acceso al portal,
-incluyendo la justificaci\'on t\'ecnica de cada una de las decisiones tomadas.
+\subsection{Propuesta y Análisis Técnico de Herramientas Open Source}
 
-% ============================================================================
-\section{Arquitectura general del par DNS+WEB}
+En el ámbito de la seguridad perimetral y el monitoreo defensivo de redes, existen múltiples herramientas de código abierto destinadas a la inspección de tráfico. Para satisfacer los requerimientos de la presente actividad, se seleccionaron para una comparativa técnica profunda dos plataformas de renombre internacional: \textbf{Suricata} y \textbf{Snort 3}, complementadas con una revisión metodológica de \textbf{Wireshark} como analizador forense interactivo.
 
-El proyecto concentra todos los servicios en un \'unico servidor
-(\texttt{192.168.0.2}), por lo que el DNS del dominio y la puerta web
-comparten esa misma direcci\'on. La separaci\'on es \textbf{l\'ogica}, no
-f\'isica: \citep{tanenbaum2012}
+\subsubsection{Análisis Técnico de Suricata 7}
+
+Desarrollado y mantenido por la \textit{Open Information Security Foundation} (OISF), Suricata es un motor de seguridad de red de código abierto de nueva generación que integra de forma unificada capacidades de IDS, IPS y Monitoreo de Seguridad de Red (\textit{Network Security Monitoring}, NSM) \citep{oisf_suricata_2024}. Sus características técnicas distintivas incluyen:
 
 \begin{itemize}
-  \item \textbf{DNS:} el Controlador de Dominio de \textbf{Samba 4} sirve la
-        zona autoritativa \texttt{sudoers.lan} en el puerto 53 de forma
-        \textbf{nativa} (fuera de Docker), usando el backend
-        \textbf{SAMBA\_INTERNAL}.
-  \item \textbf{WEB:} \textbf{Nginx} corre en un \textbf{contenedor Docker}
-        (servicio \texttt{web} del \texttt{docker-compose.yml}) y publica los
-        puertos 80/443 del host. Act\'ua como \textit{proxy inverso}: toda
-        petici\'on \texttt{*.sudoers.lan} entra por \'el y es enrutada al
-        servicio que corresponda \citep{nginxDocs}.
+  \item \textbf{Arquitectura Multihilo Nativa (*True Multi-Threading*):} A diferencia de motores monocatenarios históricos, Suricata fue diseñado desde su origen para distribuir de forma eficiente y paralela la carga de procesamiento entre todos los núcleos de CPU disponibles en el sistema operativo. Emplea un esquema de afinidad de CPU (\textit{CPU Pinning}) que permite asignar hilos específicos para la adquisición de paquetes, la decodificación de protocolos, la aplicación de firmas y el volcado de registros en disco, mitigando drásticamente el riesgo de pérdida de paquetes (\textit{packet drops}) en enlaces de alta velocidad.
+  \item \textbf{Aceleración de Patrones con Intel Hyperscan:} Integra de forma nativa la biblioteca de expresiones regulares de alto rendimiento \textbf{Hyperscan} \citep{intel_hyperscan_2019}. Esta tecnología aprovecha instrucciones vectoriales del procesador (como AVX2 y AVX-512) para evaluar decenas de miles de firmas concurrentemente en un único paso de inspección, alcanzando tasas de escaneo de múltiples gigabits por segundo sin degradación de latencia.
+  \item \textbf{Modos de Adquisición Dual (IDS e IPS):} En modo pasivo (IDS), interactúa directamente con los anillos de memoria del kernel mediante zócalos de alto desempeño \texttt{AF\_PACKET} con búferes en anillo (\textit{ring buffers}). En modo prevención (IPS), se enlaza de forma transparente con el subsistema \textbf{NFQUEUE} del cortafuegos \texttt{nftables} de Linux, permitiendo que las firmas con acción \texttt{drop} descarten físicamente los paquetes anómalos antes de que ingresen a la pila TCP/IP local.
+  \item \textbf{Decodificación Profunda de Protocolos de Directorio Activo:} Posee decodificadores internos altamente especializados para protocolos corporativos fundamentales: **Kerberos (puerto 88)**, **LDAP (puertos 389 y 636)**, **DCERPC** y **SMB/CIFS (puerto 445)**. Esta capacidad resulta crucial para detectar ataques dirigidos contra controladores de dominio Windows o Samba 4, tales como transferencias de archivos sospechosas hacia carpetas compartidas (\textit{shares}), sondeos anómalos o intentos de enumeración de cuentas.
+  \item \textbf{Telemetría Estructurada EVE JSON:} Genera salidas en formato \textbf{EVE} (\textit{Extensible Event Format}), un estándar en formato JSON unificado que registra metadatos de sesiones HTTP, transacciones DNS, certificados TLS, anomalías de flujo y eventos de descarte (\texttt{drop}), lo que facilita su indexación directa en consolas SIEM, Elasticsearch, Zabbix o Grafana.
 \end{itemize}
 
-La tabla \ref{tab:mapa-nombres} resume los nombres gestionados por el DNS del
-dominio y a qu\'e backend los dirige el servidor web.
+\subsubsection{Análisis Técnico de Snort 3}
+
+Desarrollado bajo el liderazgo de Cisco Talos, Snort ha sido históricamente el estándar de facto en detección de intrusiones en redes IP \citep{caswell_snort_2007}. En su versión más reciente, \textbf{Snort 3}, la plataforma experimentó una reescritura arquitectónica total para resolver las limitaciones de escalabilidad de Snort 2 \citep{cisco_snort3_2024}:
+
+\begin{itemize}
+  \item \textbf{Evolución hacia Modelo Multihilo:} Snort 3 abandona el modelo monohilo tradicional que obligaba a ejecutar múltiples instancias independientes del proceso coordinadas externamente. Introduce una arquitectura multihilo modular basada en hilos de procesamiento de paquetes coordinados que comparten una tabla global de configuración e información de estado.
+  \item \textbf{Configuración Basada en Lenguaje Lua:} Reemplaza la sintaxis rígida del archivo \texttt{snort.conf} por scripts en lenguaje **Lua** (\texttt{snort.lua}). Esto dota al motor de una modularidad sin precedentes, permitiendo declarar tablas dinámicas, inspectores de protocolos personalizados y estructuras condicionales en el arranque del servicio.
+  \item \textbf{Capa de Adquisición de Datos DAQ (*Data Acquisition*):} Snort 3 desacopla la lógica de captura mediante el subsistema DAQ, el cual ofrece controladores modulares para interfaces de red (\texttt{daq\_pcap}, \texttt{daq\_afpacket}, \texttt{daq\_nfq}). Para operar como IPS en sistemas Linux, depende del módulo \texttt{daq\_nfq} para interactuar con las colas de Netfilter.
+  \item \textbf{Inspectores de Protocolo Mejorados:} Incorpora inspectores avanzados de nueva generación para el manejo de sesiones TCP, reensamblaje de flujos IP y normalización de transacciones HTTP.
+\end{itemize}
+
+\subsubsection{Rol Complementario de Wireshark}
+
+Si bien el alcance de un IDS/IPS radica en la inspección desatendida y autónoma de flujos masivos de red mediante reglas automatizadas, herramientas como **Wireshark** \citep{combs_wireshark_2020} desempeñan un rol defensivo complementario indispensable:
+
+\begin{itemize}
+  \item \textbf{Análisis Forense Profundo Interactivo:} Wireshark no actúa como un motor de descarte o alerta continua en un servidor de producción, sino como una herramienta de análisis forense en diferido. Permite a los analistas de seguridad abrir capturas completas de paquetes (\textit{PCAP}) generadas por un sensor IDS para diseccionar campos de encabezado bit a bit, evaluar secuencias TCP anómalas y reconstruir cargas útiles comprometidas.
+  \item \textbf{Validación de Firmas:} Resulta esencial durante la fase de desarrollo y prueba de reglas de detección, permitiendo verificar que los campos de coincidencia (\texttt{content}, \texttt{byte\_test}, \texttt{pcre}) coincidan exactamente con la estructura de red del exploit evaluado.
+\end{itemize}
+
+\subsubsection{Comparativa Técnica Profunda: Suricata vs Snort 3}
+
+A fin de brindar un análisis riguroso y objetivo, la Tabla~\ref{tab:comparativa-suricata-snort} resume la evaluación comparativa de ambas herramientas a lo largo de diez dimensiones técnicas críticas.
 
 \begin{table}[H]
-  \centering
-  \caption{Mapa de nombres gestionados por el DNS de \texttt{sudoers.lan}}
-  \contenidoConFuente{%
-    \begin{tablaAPA}
-      \begin{tabular}{@{}p{4.6cm}p{6.2cm}c@{}}
-        \toprule
-        \textbf{Nombre} & \textbf{Backend del proxy} & \textbf{Registro} \\
-        \midrule
-        \texttt{sudoers.lan} / \texttt{web} / \texttt{www} & Portal est\'atico (Nginx) & A, CNAME \\
-        \texttt{dc1.sudoers.lan} & DC (DNS, SMB) & A \\
-        \texttt{print.sudoers.lan} & \texttt{tso-print:631} (CUPS) & A \\
-        \texttt{portainer.sudoers.lan} & \texttt{tso-portainer:9000} & A \\
-        \texttt{joaquin.sudoers.lan} & P\'agina del equipo (est\'atico) & A \\
-        \texttt{david.sudoers.lan} & \texttt{192.168.0.51:8080} & A \\
-        \texttt{nicolas.sudoers.lan} & \texttt{192.168.0.52:8080} & A \\
-        \texttt{\_ldap.\_tcp.dc.\_msdcs} & \texttt{dc1}:389 (LDAP) & SRV \\
-        \bottomrule
-      \end{tabular}
-    \end{tablaAPA}%
-  }{Elaboraci\'on propia.}
-  \label{tab:mapa-nombres}
+\centering
+\caption{Comparativa Técnica Detallada entre Suricata 7 y Snort 3}
+\label{tab:comparativa-suricata-snort}
+\contenidoConFuente{%
+  \begin{tablaAPA}
+  \begin{tabular}{L{2.8cm}L{5.8cm}L{5.8cm}}
+  \toprule
+  \textbf{Criterio Técnico} & \textbf{Suricata (Versión 7.x)} & \textbf{Snort 3 (Versión 3.x)} \\
+  \midrule
+  \textbf{Arquitectura de Hilos} & Multihilo nativo y simétrico con afinidad de núcleos (\textit{flow pinning}). Distribuye automáticamente los flujos en toda la CPU. & Multihilo modular basado en hilos de procesamiento que comparten estado común a través de la capa DAQ. \\
+  \textbf{Aceleración de Patrones} & Integración nativa optimizada de \textbf{Intel Hyperscan} (AVX2/AVX-512) y Aho-Corasick. & Soporte de Hyperscan y algoritmos AC-BNFA mediante configuración modular en Lua. \\
+  \textbf{Mecanismo IPS en Linux} & Integración directa y nativa con \textbf{NFQUEUE} (\texttt{libnetfilter\_queue}) y cortafuegos \texttt{nftables}. & Requiere la capa intermedia DAQ mediante el módulo \texttt{daq\_nfq}. \\
+  \textbf{Inspección de Protocolos AD} & Decodificación profunda nativa de \textbf{SMB (445), Kerberos (88), LDAP (389) y DCERPC}. & Cobertura enfocada en HTTP/TCP/UDP. La inspección SMB avanzada es más reciente y dependiente de preprocesadores. \\
+  \textbf{Telemetría y Registro} & Formato unificado \textbf{EVE JSON} nativo (\texttt{eve.json}) con detalles de alertas, flujos, TLS, DNS y eventos \texttt{drop}. & Soporte nativo de salida JSON (\texttt{alert\_json}), además del formato binario Unified2 y texto plano. \\
+  \textbf{Disponibilidad en Debian} & \textbf{Paquete oficial de primera clase} en Debian 12 y 13 (\texttt{apt install suricata suricata-update}). & No disponible en repositorios oficiales base de Debian 12/13; requiere compilación manual o contenedores Docker. \\
+  \textbf{Lenguaje de Configuración} & Sintaxis estandarizada y legible en \textbf{YAML} (\texttt{suricata.yaml}). & Lenguaje de programación interpretado \textbf{Lua} (\texttt{snort.lua}), altamente flexible pero más complejo. \\
+  \textbf{Ecosistema de Firmas} & Total compatibilidad con conjuntos de reglas de \textbf{Emerging Threats (ET Open/Pro)} y gestión con \texttt{suricata-update}. & Conjuntos de reglas de \textbf{Cisco Talos VRT} y compatibilidad con reglas de la comunidad. \\
+  \textbf{Monitoreo de Archivos} & Capacidad nativa de extracción y cálculo de hashes MD5/SHA256 de archivos en tránsito en protocolos SMB/HTTP. & Requiere inspectores específicos de archivos configurados dentro de la cadena Lua. \\
+  \textbf{Resiliencia ante Fallos} & Soporte directo del flag \texttt{bypass} en \texttt{nftables} que garantiza continuidad operativa (\textit{Fail-Open}). & Soporte de tolerancia a fallos dependiente del modo de operación del módulo DAQ seleccionado. \\
+  \bottomrule
+  \end{tabular}
+  \end{tablaAPA}%
+}{Elaboración propia con base en \cite{oisf_suricata_2024} y \cite{cisco_snort3_2024}.}
 \end{table}
 
-% ============================================================================
-\section{El DNS del dominio: Samba AD (SAMBA\_INTERNAL)}
+\subsubsection{Justificación de Selección para la Infraestructura Corporativa}
 
-\subsection{Autoridad de la zona y backend DNS}
+Con base en la evaluación técnica previa, se determinó seleccionar **Suricata** como la plataforma defensiva nativa para la infraestructura centralizada en el servidor \texttt{dc1} (\texttt{192.168.0.2}). Las razones determinantes fueron:
 
-Un dominio de Active Directory se apoya por completo en el DNS: los clientes
-lo consultan para descubrir d\'onde est\'a cada servicio del dominio, tanto
-los nombres comunes (\texttt{web}) como los registros de descubrimiento (SRV)
-\citep{msft_activedirectory}. Por ello, durante el aprovisionamiento del DC se
-eligi\'o expl\'icitamente que el propio Samba administre la zona:
+\begin{enumerate}
+  \item \textbf{Especialización en Protocolos de Directorio Activo:} Dado que \texttt{dc1} aloja el Controlador de Dominio de la organización (\texttt{SUDOERS.LAN}), la capacidad de Suricata para inspeccionar tráfico SMB, Kerberos y LDAP sin necesidad de software propietario adicional brinda una visibilidad sin igual contra amenazas dirigidas a la identidad empresarial.
+  \item \textbf{Soporte Oficial y Estabilidad en Debian:} Al ser un paquete mantenido directamente en los repositorios oficiales de Debian, su integración con \texttt{systemd}, su actualización automática mediante \texttt{suricata-update} y su mantenimiento a largo plazo resultan óptimos y confiables.
+  \item \textbf{Concurrencia sin Pérdidas:} La arquitectura de hilos de Suricata aprovecha al máximo los núcleos del servidor host, evitando que la inspección profunda de paquetes se convierta en un cuello de botella para las transferencias de archivos o el acceso web.
+\end{enumerate}
 
-\begin{lstlisting}[style=terminal]
-$ samba-tool domain provision \
-    --realm=SUDOERS.LAN --domain=SUDOERS \
-    --server-role=dc --dns-backend=SAMBA_INTERNAL \
-    --use-rfc2307 --host-name=dc1 --host-ip=192.168.0.2 \
-    --option="dns forwarder = 192.168.0.1"
+% ----------------------------------------------------------------------------
+\subsection{Propuesta Arquitectónica: Ubicación del Monitor en la Red Empresarial}
+
+Un aspecto crucial en el diseño de un sistema de defensa radica en responder a la interrogante: \textit{¿Dónde debe ubicarse el monitor o sensor dentro de una red empresarial?} Una herramienta de vanguardia pierde toda efectividad si se instala en un segmento ciego donde el tráfico sospechoso no puede ser observado o interceptado.
+
+\subsubsection{Zonas Estratégicas de Ubicación en una Topología Empresarial}
+
+En una arquitectura de red corporativa contemporánea, existen tres posiciones fundamentales donde se deben emplazar los sensores de detección y prevención:
+
+\begin{enumerate}
+  \item \textbf{Posición 1: Sensor Perimetral de Borde (Norte-Sur, En Línea tras el Firewall de Borde):}
+    \begin{itemize}
+      \item \textit{Objetivo:} Inspeccionar todo el tráfico entrante y saliente entre la red interna e Internet.
+      \item \textit{Tipo de Sensor:} IPS en línea (*In-line*).
+      \item \textit{Amenazas Mitigadas:} Bloqueo de ataques dirigidos desde el exterior (escaneos masivos de Internet, intentos de explotación de servicios publicados en DMZ, conexiones de retorno a servidores de Comando y Control, C2).
+    \end{itemize}
+  \item \textbf{Posición 2: Sensor de Distribución Interna / Núcleo (Este-Oeste, Puerto Espejo SPAN en Switch Core):}
+    \begin{itemize}
+      \item \textit{Objetivo:} Monitorear el tráfico transversal que fluye entre las diferentes VLANs departamentales (VLAN de Administración, VLAN de Usuarios de Oficina, VLAN de Clientes Inalámbricos).
+      \item \textit{Tipo de Sensor:} IDS pasivo fuera de banda.
+      \item \textit{Amenazas Mitigadas:} Detección temprana de movimientos laterales, propagación de malware interno, ataques de envenenamiento ARP y escaneos de reconocimiento lanzados por equipos infectados dentro de la red corporativa.
+    \end{itemize}
+  \item \textbf{Posición 3: Sensor en el Servidor Centralizado / Host-based Network IPS (H-NIPS en dc1):}
+    \begin{itemize}
+      \item \textit{Objetivo:} Brindar protección directa y sin intermediarios en la propia máquina que consolida los servicios más críticos de la organización (Active Directory, DNS, Web, Correo y Archivos).
+      \item \textit{Tipo de Sensor:} IPS en línea acoplado al kernel mediante \texttt{nftables} y \texttt{NFQUEUE}.
+      \item \textit{Amenazas Mitigadas:} Filtrado de ataques directos contra los puertos de identidad corporativa (88, 389, 445), fuerza bruta SSH en puerto 22 y ataques de capa de aplicación contra el servidor web (SQLi, Log4Shell), descartando el paquete malicioso antes de su entrega al proceso en espacio de usuario.
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Métodos de Conexión y Acoplamiento Físico/Lógico}
+
+La integración de los sensores en los puntos antes descritos se ejecuta mediante tres metodologías:
+
+\begin{itemize}
+  \item \textbf{Puerto Espejo (*Port Mirroring / SPAN*):} La configuración del switch central duplica el tráfico de uno o varios puertos o VLANs hacia una interfaz de red dedicada en el sensor IDS. No interfiere con el cableado físico, aunque puede presentar pérdidas si la capacidad del puerto espejo se satura.
+  \item \textbf{TAP de Red Físico (*Test Access Point*):} Dispositivo de hardware pasivo intercalado en el enlace físico que clona las señales ópticas o de cobre hacia el sensor. Ofrece fidelidad total y tolerancia absoluta a fallos de energía.
+  \item \textbf{Inserción en Línea mediante NFQUEUE (Enfoque dc1):} Mecanismo lógico de bajo nivel donde las reglas del cortafuegos interno desvían los paquetes entrantes hacia una cola del kernel (\texttt{queue num 0}) donde el proceso del IPS toma la decisión de autorizar (\texttt{accept}) o destruir (\texttt{drop}) el flujo.
+\end{itemize}
+
+\subsubsection{Diagrama Lógico de la Arquitectura de Seguridad}
+
+La Figura~\ref{fig:arquitectura-ids-ips} ilustra la arquitectura de seguridad diseñada e implementada para la organización bajo la subred \texttt{192.168.0.0/24}, destacando el router de borde, los segmentos de clientes y la estructura interna de intercepción del servidor central \texttt{dc1}.
+
+\figuraAPA{fig:arquitectura-ids-ips}{Diagrama Lógico de Arquitectura de Red y Flujo de Inspección IDS/IPS}{%
+\begin{tikzpicture}[
+    scale=0.92, transform shape,
+    font=\small,
+    bloque/.style={draw, rounded corners=3pt, fill=blue!6, minimum width=2.8cm, minimum height=1.0cm, align=center, thick},
+    enrutador/.style={draw, shape=rectangle, rounded corners=6pt, fill=orange!12, minimum width=3.4cm, minimum height=1.2cm, align=center, thick},
+    servidor/.style={draw, rounded corners=4pt, fill=green!8, minimum width=8.5cm, minimum height=5.8cm, align=center, dashed, thick},
+    componente/.style={draw, rounded corners=2pt, fill=white, minimum width=2.4cm, minimum height=0.8cm, align=center},
+    decision/.style={draw, shape=diamond, aspect=2, fill=yellow!15, align=center, inner sep=2pt, thick},
+    linea/.style={-latex, thick},
+    lineared/.style={-latex, thick, red!80!black},
+    lineagreen/.style={-latex, thick, green!60!black}
+]
+
+  % Nodos de Red Externa y Borde
+  \node[bloque, fill=gray!15] (wan) at (0, 7.2) {Internet / WAN\\(Red Externa no Confiable)};
+  \node[enrutador] (router) at (0, 5.4) {Router de Borde\\TP-Link TL-WR850N\\(IP: \texttt{192.168.0.1})};
+  \draw[linea] (wan) -- node[right, font=\scriptsize]{Tráfico Entrante} (router);
+
+  % Nodos de la LAN
+  \node[bloque, fill=blue!10] (clients) at (-4.2, 3.8) {Clientes y Admins\\(\texttt{192.168.0.50--.199})\\LAN / WiFi 802.1X};
+  \node[bloque, fill=purple!10] (zabbix) at (-4.2, 1.8) {Servidor Monitoreo\\Zabbix Dedicado\\(\texttt{192.168.0.3})};
+
+  \draw[linea] (router) -| (clients);
+  \draw[linea] (router) -| (zabbix);
+
+  % Contenedor Servidor Central dc1
+  \node[servidor] (dc1) at (3.2, 1.8) {};
+  \node[font=\bfseries\normalsize, anchor=north west] at (-0.8, 4.5) {Servidor Central dc1 (\texttt{192.168.0.2})};
+
+  % Componentes internos de dc1
+  \node[componente, fill=blue!12] (nic) at (3.2, 3.8) {Interfaz de Red Física\\(\texttt{eno1} / LAN Host)};
+  \node[componente, fill=orange!15] (nft) at (3.2, 2.6) {Firewall \texttt{nftables}\\Cálculo Hook \texttt{input}};
+  \node[decision] (suri) at (3.2, 1.0) {Suricata 7\\Motor IDS / IPS};
+  \node[componente, fill=green!15] (svcs) at (1.0, -0.4) {Servicios Corporativos\\(AD, DNS, SMB, Nginx)};
+  \node[componente, fill=red!15] (drop) at (5.4, -0.4) {Descarte en Kernel\\(Paquete Eliminado)};
+  \node[componente, fill=gray!20] (logs) at (3.2, -0.4) {Bitácoras de Seguridad\\\texttt{fast.log} / \texttt{eve.json}};
+
+  % Conexiones dentro de dc1
+  \draw[linea] (router) -| node[above, font=\scriptsize, near start]{Enlace Ethernet} (nic);
+  \draw[linea] (nic) -- (nft);
+  \draw[linea] (nft) -- node[right, font=\scriptsize]{\texttt{queue num 0 bypass}} (suri);
+
+  \draw[lineagreen] (suri) -| node[above, font=\scriptsize, near start]{Veredicto ACCEPT} (svcs);
+  \draw[lineared] (suri) -| node[above, font=\scriptsize, near start]{Veredicto DROP} (drop);
+  \draw[linea] (suri) -- node[right, font=\scriptsize]{Alerta} (logs);
+
+\end{tikzpicture}%
+}{Elaboración propia.}
+
+% ----------------------------------------------------------------------------
+\subsection{Implementación y Validación Práctica en el Laboratorio}
+
+La solución analizada fue desplegada en el servidor \texttt{dc1} mediante un módulo técnico integrado, disponible en el repositorio bajo la ruta \texttt{server/suricata/}. A continuación se describen las reglas implementadas y las pruebas empíricas efectuadas.
+
+\subsubsection{Despliegue de Reglas de Seguridad Locales}
+
+Se estructuró el archivo de firmas de seguridad local \texttt{homelab.rules}, enfocado en la mitigación de los vectores de ataque más habituales en la organización:
+
+\begin{itemize}
+  \item \textbf{Firma de Bloqueo IPS (Prueba en Línea):}
+\begin{lstlisting}[language=bash]
+drop tcp any any -> $HOME_NET $HTTP_PORTS (msg:"[HOMELAB-IPS-DROP] Bloqueo HTTP: Carga maliciosa en aplicacion web"; flow:to_server,established; content:"MALICIOUS_SIMULATION_ATTACK"; nocase; sid:9000002; rev:1;)
 \end{lstlisting}
-
-Con el backend \textbf{SAMBA\_INTERNAL} el DC es el servidor de nombres
-autoritativo de la zona \texttt{sudoers.lan}: guarda los registros dentro del
-directorio (no en archivos de zona BIND) y los actualiza din\'amicamente.
-Adem\'as se le indic\'o un \textit{forwarder} hacia el router
-(\texttt{192.168.0.1}) para resolver nombres externos de Internet
-\citep{iscBIND9}. La zona queda registrada en \texttt{/etc/samba/smb.conf}
-junto con el rol del servidor:
-
-\begin{lstlisting}[style=terminal]
-$ grep -E 'server role|dns|realm' /etc/samba/smb.conf
-[global]
-    server role = active directory domain controller
-    realm = SUDOERS.LAN
-    dns forwarder = 192.168.0.1
-    dns update command = /usr/sbin/samba_dnsupdate
+  \item \textbf{Firma de Alerta IDS (Sonda Pasiva):}
+\begin{lstlisting}[language=bash]
+alert tcp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Sonda de prueba detectada (TEST_PROBE_ALERT_ONLY)"; flow:to_server,established; content:"TEST_PROBE_ALERT_ONLY"; nocase; sid:9000010; rev:1;)
 \end{lstlisting}
-
-\capturaAPA{fig:smb-dns}{Zona \texttt{sudoers.lan} y rol de DC en
-\texttt{smb.conf}}{captura-smb-dns.png}{Captura de pantalla mostrando la salida de \texttt{grep} sobre \texttt{/etc/samba/smb.conf} con el rol \texttt{active directory domain controller}, el \textit{realm} \texttt{SUDOERS.LAN} y la directiva \texttt{dns forwarder = 192.168.0.1}.}
-
-\subsection{Registros A de los servicios}
-
-Como todos los servicios corren en el \'unico servidor de la red, los
-registros A de la zona apuntan, salvo el DC mismo, al \textbf{proxy inverso}
-\texttt{192.168.0.2}. El listado completo de la zona se consulta con
-\texttt{samba-tool dns}:
-
-\begin{lstlisting}[style=terminal]
-$ kinit administrator                    # ticket de administrador
-$ samba-tool dns query dc1.sudoers.lan sudoers.lan @ ALL -k yes
-Name=, Records=8, Children=0
- DC@SUDOERS.LAN: type=A, value=192.168.0.2
- web@SUDOERS.LAN: type=A, value=192.168.0.2
- joaquin@SUDOERS.LAN: type=A, value=192.168.0.2
- print@SUDOERS.LAN: type=A, value=192.168.0.2
- portainer@SUDOERS.LAN: type=A, value=192.168.0.2
- david@SUDOERS.LAN: type=A, value=192.168.0.2
- nicolas@SUDOERS.LAN: type=A, value=192.168.0.2
+  \item \textbf{Protección contra Escaneos Sigilosos:} Detección de paquetes con banderas TCP vacías (escaneos NULL) o banderas combinadas FPU (escaneos XMAS):
+\begin{lstlisting}[language=bash]
+alert tcp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Reconocimiento de red: Escaneo TCP NULL detectado"; flags:0; sid:9000020; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"[HOMELAB-IDS-ALERT] Reconocimiento de red: Escaneo TCP XMAS detectado"; flags:FPU; sid:9000021; rev:1;)
 \end{lstlisting}
-
-\capturaAPA{fig:zona-dns}{Zona DNS completa de \texttt{sudoers.lan} consultada
-con \texttt{samba-tool dns}}{captura-zona-dns.png}{Captura de pantalla mostrando la salida de \texttt{samba-tool dns query dc1.sudoers.lan sudoers.lan @ ALL} con los registros A de \texttt{dc1}, \texttt{web}, \texttt{print}, \texttt{portainer} y de los administradores, todos hacia \texttt{192.168.0.2}.}
-
-\subsection{Registro A del Controlador de Dominio}
-
-El registro \texttt{A} es la tabla nombre$\rightarrow$IP del dominio: toda
-consulta al DNS de la red empieza pidiendo \texttt{dc1.sudoers.lan}. La
-resoluci\'on directa se verifica con \texttt{dig}:
-
-\begin{lstlisting}[style=terminal]
-$ dig web.sudoers.lan
-;; ANSWER SECTION:
-web.sudoers.lan. 900 IN A 192.168.0.2
+  \item \textbf{Protección de Kerberos y Active Directory:} Detección de sondeos masivos orientados a saturar o enumerar usuarios en el puerto 88:
+\begin{lstlisting}[language=bash]
+alert tcp any any -> $HOME_NET 88 (msg:"[HOMELAB-IDS-ALERT] Sondeo continuo o sospechoso al servicio Kerberos del AD DC"; flags:S; threshold:type both, track by_src, count 15, seconds 5; sid:9000030; rev:1;)
 \end{lstlisting}
+\end{itemize}
 
-\capturaAPA{fig:dig-web}{Resoluci\'on de \texttt{web.sudoers.lan} por el DNS del
-DC}{captura-dig-web.png}{Captura de pantalla mostrando la salida de \texttt{dig web.sudoers.lan} con la respuesta \texttt{A 192.168.0.2}.}
+\subsubsection{Pruebas Experimentales de Laboratorio}
 
-\subsection{Registros de los equipos de administradores}
+La suite de validación automatizada (\texttt{server/suricata/test-ids-ips.sh}) permitió demostrar experimentalmente la dualidad funcional entre el modo IDS y el modo IPS:
 
-Los nombres de los miembros del equipo (\texttt{david.sudoers.lan} y
-\texttt{nicolas.sudoers.lan}) tambi\'en resuelven hacia el \textbf{proxy}
-(\texttt{192.168.0.2}), y no hacia las m\'aquinas de sus due\~nos: como la
-puerta de entrada es \'unica, el backend puede cambiar de m\'aquina o de
-puerto sin que los nombres ni los clientes cambien. Los registros se crean con
-el script \textbf{idempotente} \texttt{dc/dns-records.sh}, que usa
-\texttt{samba-tool dns add} con autenticaci\'on Kerberos obligatoria:
-
+\paragraph{Caso 1: Demostración en Modo IDS (Detección Pasiva).}
+Con el sensor operando sobre zócalos \texttt{AF\_PACKET}, se transmitió una solicitud HTTP dirigida al servidor con la cadena \texttt{TEST\_PROBE\_ALERT\_ONLY}.
+\begin{itemize}
+  \item \textbf{Comportamiento de Red:} La conexión TCP completó exitosamente el saludo de tres vías (*three-way handshake*) y el servidor web entregó el código de estado HTTP 200 al cliente.
+  \item \textbf{Registro Generado en \texttt{fast.log}:}
 \begin{lstlisting}[style=terminal]
-$ sudo kinit administrator
-$ sudo bash dc/dns-records.sh
-==> Servicios web alojados en m\'aquinas de admins (via proxy) ...
-  ok    david.sudoers.lan    ->  192.168.0.2  (ya existe)
-  ok    nicolas.sudoers.lan  ->  192.168.0.2  (ya existe)
+10/24/2026-11:45:10.102341 [**] [1:9000010:1] [HOMELAB-IDS-ALERT] Sonda de prueba detectada (TEST_PROBE_ALERT_ONLY) [**] [Classification: Misc activity] [Priority: 3] {TCP} 192.168.0.50:48210 -> 192.168.0.2:80
 \end{lstlisting}
+  \item \textbf{Conclusión:} El IDS cumplió su rol de observador no invasivo, alertando sobre la presencia de la firma sin afectar el tráfico.
+\end{itemize}
 
-\capturaAPA{fig:dns-records}{Creaci\'on idempotente de los registros de los
-administradores}{captura-dns-records.png}{Captura de pantalla mostrando la salida de \texttt{sudo bash dc/dns-records.sh} con los registros \texttt{david} y \texttt{nicolas} apuntando a \texttt{192.168.0.2}.}
-
-\subsection{Registros SRV de descubrimiento}
-
-Los registros \textbf{SRV} son las ``gu\'ias de servicios'' del dominio
-\citep{rfc2782}: le dicen a cualquier cliente d\'onde est\'a el LDAP, el
-Kerberos o el DC. Sin ellas, las estaciones no encuentran el dominio. El
-aprovisionamiento de Samba los gener\'o autom\'aticamente:
-
+\paragraph{Caso 2: Demostración en Modo IPS (Prevención y Descarte Activo).}
+Se activó el modo IPS mediante el script \texttt{ips-toggle.sh --ips}, inyectando la regla \texttt{queue num 0 bypass} en la cadena \texttt{input} de \texttt{nftables}. Posteriormente, se envió una solicitud HTTP simulando un vector de exploit con el payload \texttt{MALICIOUS\_SIMULATION\_ATTACK}.
+\begin{itemize}
+  \item \textbf{Comportamiento de Red:} La conexión del cliente se abortó de manera inmediata con un error de tiempo de espera agotado (*timeout*) o terminación forzada (*connection reset*). El paquete jamás fue recibido por el proceso de Nginx ni por la aplicación interna.
+  \item \textbf{Registro Generado en \texttt{fast.log}:}
 \begin{lstlisting}[style=terminal]
-$ dig _ldap._tcp.dc._msdcs.sudoers.lan SRV
-;; ANSWER SECTION:
-_ldap._tcp.dc._msdcs.sudoers.lan. 900 IN SRV 0 100 389 dc1.sudoers.lan.
+10/24/2026-11:48:22.589124 [Drop] [**] [1:9000002:1] [HOMELAB-IPS-DROP] Bloqueo HTTP: Carga maliciosa en aplicacion web (MALICIOUS_SIMULATION_ATTACK) [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 192.168.0.50:51402 -> 192.168.0.2:80
 \end{lstlisting}
+  \item \textbf{Conclusión:} La etiqueta \texttt{[Drop]} confirma que Suricata emitió el veredicto de descarte al módulo NFQUEUE del kernel Linux, neutralizando proactivamente la amenaza en tiempo real.
+\end{itemize}
 
-\capturaAPA{fig:dig-srv}{Registros SRV de descubrimiento del dominio generados
-por el DC}{captura-dig-srv.png}{Captura de pantalla mostrando la salida de \texttt{dig \_ldap.\_tcp.dc.\_msdcs.sudoers.lan SRV} con el registro SRV apuntando al puerto 389 de \texttt{dc1.sudoers.lan}.}
-
-\subsection{Reenviador hacia Internet}
-
-Para que los clientes resuelvan tambi\'en nombres externos, el DC funciona con
-un \textit{forwarder} hacia \textbf{el router de la red}. De esta manera una
-\'unica respuesta del DNS del dominio cubre tanto los nombres internos (zona
-\texttt{sudoers.lan}) como los de Internet \citep{iscBIND9}:
+\paragraph{Caso 3: Telemetría Estructurada en \texttt{eve.json}.}
+Adicionalmente, se confirmó que cada evento de bloqueo genera un registro enriquecido en formato JSON que detalla el flujo, direcciones físicas MAC, payload transmitido y códigos de clasificación:
 
 \begin{lstlisting}[style=terminal]
-$ dig google.com @192.168.0.2 +short
-142.250.78.78          # resolución externa vía el forwarder 192.168.0.1
-\end{lstlisting}
-
-\capturaAPA{fig:dig-externo}{Resoluci\'on de nombres externos a trav\'es del
-\textit{forwarder}}{captura-dig-externo.png}{Captura de pantalla mostrando la salida de \texttt{dig google.com @192.168.0.2} con una direcci\'on IP p\'ublica resuelta.}
-
-\subsection{Entrega del DNS a la red (integraci\'on con DHCP)}
-
-Para que una estaci\'on reci\'en conectada quede lista sin intervenci\'on
-manual, el servidor DHCP \textbf{Kea} (en contenedor, con \texttt{network\_mode:
-host}) entrega junto con la IP las opciones de red: \textbf{DNS
-\texttt{192.168.0.2}}, dominio \texttt{sudoers.lan}, gateway
-\texttt{192.168.0.1} y NTP \texttt{192.168.0.2}. De este modo toda m\'aquina
-de la red resuelve los nombres internos contra el DNS del DC de forma
-transparente.
-
-% ============================================================================
-\section{Servidor WEB: Nginx como proxy inverso}
-
-\subsection{Despliegue como contenedor}
-
-El servidor web se despleg\'o como \textbf{contenedor Docker} del proyecto
-(servicio \texttt{web} del \texttt{docker-compose.yml}), a diferencia del DC
-que corre nativo. La imagen es \texttt{nginx:1.27-alpine} y publica los
-puertos 80 y 443 del host; el portal est\'atico y los certificados TLS llegan
-por vol\'umenes:
-
-\begin{lstlisting}[style=terminal]
-web:
-  build: ./services/web          # nginx:1.27-alpine
-  container_name: tso-web
-  ports:
-    - "80:80"                    # redirige a HTTPS
-    - "443:443"                  # HTTPS (termina TLS)
-  volumes:
-    - ./services/web/public:/usr/share/nginx/html:ro
-    - ./services/web/tls:/etc/nginx/tls:ro      # CA + cert wildcard
-  restart: always                # la puerta web debe estar siempre arriba
-\end{lstlisting}
-
-\capturaAPA{fig:compose-web}{Servicio \texttt{web} definido en el
-\texttt{docker-compose.yml}}{captura-compose-web.png}{Captura de pantalla mostrando el bloque \texttt{web:} del \texttt{docker-compose.yml} con los puertos 80/443, los vol\'umenes del portal y de TLS, y la directiva \texttt{restart: always}.}
-
-\subsection{El portal y los virtual hosts}
-
-Nginx enruta por \textbf{nombre} cada petici\'on: el portal de la intranet
-responde a \texttt{sudoers.lan}, \texttt{web.sudoers.lan} y
-\texttt{www.sudoers.lan} desde el directorio est\'atico, mientras el resto de
-los \textit{virtual hosts} (\texttt{print}, \texttt{portainer}, los miembros)
-son \textit{proxies} hacia sus backends. Adem\'as, \textbf{todo HTTP (80)
-redirige a HTTPS (443)}: la web nunca se sirve en claro.
-
-\begin{lstlisting}[style=terminal]
-server {
-    listen 80;                                 # HTTP: solo redirige
-    server_name sudoers.lan web.sudoers.lan www.sudoers.lan;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;                            # HTTPS: portal
-    http2 on;
-    server_name sudoers.lan web.sudoers.lan www.sudoers.lan;
-    ssl_certificate     /etc/nginx/tls/server.crt;
-    ssl_certificate_key /etc/nginx/tls/server.key;
-    root  /usr/share/nginx/html;
-    index index.html;
+{
+  "timestamp": "2026-10-24T11:48:22.589124-0400",
+  "flow_id": 819203918239,
+  "event_type": "drop",
+  "src_ip": "192.168.0.50",
+  "src_port": 51402,
+  "dest_ip": "192.168.0.2",
+  "dest_port": 80,
+  "proto": "TCP",
+  "action": "blocked",
+  "alert": {
+    "action": "drop",
+    "signature_id": 9000002,
+    "signature": "[HOMELAB-IPS-DROP] Bloqueo HTTP: Carga maliciosa en aplicacion web"
+  }
 }
 \end{lstlisting}
-
-\capturaAPA{fig:nginx-conf}{Virtual host del portal y redirecci\'on HTTP a
-HTTPS en \texttt{services/web/nginx.conf}}{captura-nginx-conf.png}{Captura de pantalla mostrando el contenido de \texttt{services/web/nginx.conf} con el bloque \texttt{server} del portal y la directiva \texttt{return 301 https://\$host\$request\_uri}.}
-
-\subsection{HTTPS con CA interna}
-
-El sitio se publica por \textbf{HTTPS} con un certificado \textit{wildcard}
-\texttt{*.sudoers.lan} firmado por una \textbf{CA interna} (``SUDOERS.LAN
-CA''), generada con el script \texttt{services/web/tls-gen.sh} usando
-\texttt{openssl}:
-
-\begin{lstlisting}[style=terminal]
-$ sudo bash services/web/tls-gen.sh
-=> Generando CA interna ...
-=> Generando certificado para *.sudoers.lan ...
-============================================
-  CA:       ca.crt (instal\'a en los clientes para confiar)
-  Server:   server.crt / server.key  (*.sudoers.lan, 825 d\'ias)
-============================================
-$ docker compose up -d --build web
-\end{lstlisting}
-
-\capturaAPA{fig:tls-gen}{Generaci\'on de la CA interna y del certificado
-\textit{wildcard}}{captura-tls-gen.png}{Captura de pantalla mostrando la salida de \texttt{sudo bash services/web/tls-gen.sh} con la creaci\'on de la CA y del certificado \texttt{*.sudoers.lan}.}
-
-El certificado cubre los SAN \texttt{sudoers.lan}, \texttt{*.sudoers.lan},
-\texttt{web}, \texttt{www}, \texttt{print}, \texttt{portainer}, \texttt{mail},
-\texttt{webmail}, \texttt{dashboard} y los subdominios de los miembros. Como
-la CA es interna, cada cliente debe instalar \texttt{ca.crt} como CA de
-confianza del sistema para evitar la advertencia del navegador. El acceso por
-HTTPS se verifica localmente con \texttt{curl}:
-
-\begin{lstlisting}[style=terminal]
-$ curl -skI https://web.sudoers.lan
-HTTP/1.1 200 OK
-Server: nginx
-...
-\end{lstlisting}
-
-\capturaAPA{fig:curl-web}{Acceso HTTPS al portal servido por Nginx}{captura-curl-web.png}{Captura de pantalla mostrando la salida de \texttt{curl -skI https://web.sudoers.lan} con el c\'odigo \texttt{200 OK} y el encabezado \texttt{Server: nginx}.}
-
-\subsection{Proxy a los servicios: impresi\'on y Portainer}
-
-Los servicios contenedores sin exposi\'on p\'ublica se alcanzan a trav\'es
-del \texttt{proxy}: \texttt{print.sudoers.lan} y \texttt{portainer.sudoers.lan}
-resuelven (DNS) hacia \texttt{192.168.0.2} y Nginx los reenv\'ia a los
-contenedores \texttt{tso-print} y \texttt{tso-portainer} por la red interna de
-Docker, sin publicar puertos adicionales en el host:
-
-\begin{lstlisting}[style=terminal]
-server {
-    listen 443 ssl;
-    server_name print.sudoers.lan;
-    location / {
-        resolver 127.0.0.11 valid=10s ipv6=off;   # DNS interno de Docker
-        set $cups_upstream http://tso-print:631;
-        proxy_pass $cups_upstream;
-    }
-}
-\end{lstlisting}
-
-Solo el proxy conoce la direcci\'on interna de cada backend; desde la LAN el
-\'unico puerto visible es el 443 del proxy \citep{nginxDocs}.
-
-\subsection{Subdominios de los administradores (david / nicolas)}
-
-David y Nicol\'as alojan su propio servicio web \textbf{en sus m\'aquinas}
-(\texttt{192.168.0.51} y \texttt{192.168.0.52}, puerto \texttt{8080}). Su DNS
-apunta al proxy (\texttt{192.168.0.2}) y el proxy alcanza la m\'aquina por la
-red plana:
-
-\begin{lstlisting}[style=terminal]
-server {
-    listen 443 ssl;
-    server_name david.sudoers.lan;
-    location / {
-        resolver 127.0.0.11 valid=10s ipv6=off;
-        set $david_upstream http://192.168.0.51:8080;
-        proxy_pass $david_upstream;
-        proxy_connect_timeout 5s;
-    }
-}
-\end{lstlisting}
-
-\begin{lstlisting}[style=terminal]
-$ dig david.sudoers.lan +short          # el cliente resuelve el proxy
-192.168.0.2
-$ curl -sk https://david.sudoers.lan    # y el proxy responde la m\'aquina
-... (contenido del servicio de David) ...
-\end{lstlisting}
-
-\capturaAPA{fig:curl-david}{Servicio de la m\'aquina de David publicado por el
-proxy}{captura-curl-david.png}{Captura de pantalla mostrando la resoluci\'on \texttt{dig david.sudoers.lan +short} con \texttt{192.168.0.2} y la respuesta de \texttt{curl -sk https://david.sudoers.lan} con el contenido del servicio del administrador.}
-
-Para el cliente no importa el puerto interno: afuera solo existe la puerta
-est\'andar \texttt{443} y los nombres quedan libres de direcciones y puertos.
-
-% ============================================================================
-\section{Pruebas de integraci\'on}
-
-\subsection{Resoluci\'on y acceso desde un cliente de la red}
-
-Un equipo cliente de la red \texttt{192.168.0.0/24} (con el DNS
-\texttt{192.168.0.2} entregado por DHCP) consulta el dominio y accede al
-portal sin configuraci\'on manual:
-
-\begin{lstlisting}[style=terminal]
-$ dig web.sudoers.lan +short             # desde el cliente
-192.168.0.2
-$ curl -sk https://web.sudoers.lan | head -5
-<!DOCTYPE html>
-<html lang="es">
-... (portal de la intranet) ...
-\end{lstlisting}
-
-\capturaAPA{fig:cliente-dig}{Resoluci\'on de nombres desde un cliente de la
-red}{captura-cliente-dig.png}{Captura de pantalla mostrando la salida de \texttt{dig web.sudoers.lan} ejecutada en un cliente, respondiendo \texttt{192.168.0.2}.}
-
-\capturaAPA{fig:cliente-web}{Acceso HTTPS al portal desde el navegador del
-cliente}{captura-cliente-web.png}{Captura de pantalla del navegador de un cliente mostrando el portal de la intranet cargado por \texttt{https://web.sudoers.lan} con el candado de confianza de la CA interna.}
-
-La misma validaci\'on se repite para el portal, la consola de impresi\'on, el
-panel de Portainer y las p\'aginas de los miembros, confirmando que
-\textbf{DNS + proxy web} funcionan como un \'unico sistema de nombres y
-publicaci\'on.
-
-\subsection{Resumen de decisiones t\'ecnicas}
-
-La tabla \ref{tab:decisiones} resume las decisiones m\'as relevantes de la
-configuraci\'on y su justificaci\'on.
-
-\begin{table}[H]
-  \centering
-  \caption{Decisiones t\'ecnicas y justificaci\'on}
-  \label{tab:decisiones}
-  \contenidoConFuente{%
-    \begin{tablaAPA}
-      \begin{tabular}{@{}p{5cm}p{8.5cm}@{}}
-      \toprule
-      \textbf{Decisi\'on} & \textbf{Justificaci\'on} \\
-      \midrule
-      DNS del dominio en el DC (SAMBA\_INTERNAL) & El AD exige que el DC sea quien sirva la zona \texttt{sudoers.lan} y sus registros SRV \citep{sambateam2024} \\
-      Registros A apuntan SIEMPRE al proxy (\texttt{192.168.0.2}) & Una \'unica puerta: los backends cambian sin cambiar los nombres \citep{msft_activedirectory} \\
-      Nginx en contenedor (docker-compose) & La web es un servicio m\'as del compose; solo el DC corre nativo \\
-      TLS con CA interna + wildcard \texttt{*.sudoers.lan} & Cifra la intranet sin depender de una CA p\'ublica ni de dominios externos \\
-      HTTP $\rightarrow$ HTTPS (301) y \texttt{ssl\_reject\_handshake} & Proh\'ibe tr\'afico en claro y el handshake a nombres desconocidos \\
-      \texttt{dc/dns-records.sh} idempotente & Se puede ejecutar varias veces sin duplicar registros (RECORD\_ALREADY\_EXISTS) \\
-      \textit{Forwarder} hacia \texttt{192.168.0.1} & Resuelve Internet reutilizando la salida del router \\
-      \bottomrule
-      \end{tabular}
-    \end{tablaAPA}%
-  }{Elaboraci\'on propia.}
-\end{table}

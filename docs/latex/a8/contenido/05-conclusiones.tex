@@ -1,62 +1,22 @@
 % ============================================================================
-%  CAPITULO IV: CONCLUSIONES
+%  CONCLUSIONES
 % ============================================================================
 
-\section{Conclusiones}
+\section{Conclusiones y Recomendaciones}
 
-\subsection{Resultado del DNS}
+\subsection{Conclusiones}
 
-La configuraci\'on del DNS del dominio mediante el Controlador de Dominio de
-\textbf{Samba 4} (backend \textbf{SAMBA\_INTERNAL}) permiti\'o resolver de
-manera estable la zona autoritativa \texttt{sudoers.lan}. Las consultas desde
-el servidor y desde un cliente de la red devolvieron los registros A de los
-servicios, los registros SRV de descubrimiento (LDAP, Kerberos) y las
-resoluciones externas a trav\'es del \textit{forwarder}, lo que confirma que
-la integraci\'on entre el directorio y el DNS funciona correctamente y que los
-clientes descubren el dominio sin configuraci\'on manual.
+\begin{enumerate}
+  \item \textbf{Diferenciación Operativa y Gestión de Riesgos:} El estudio conceptual entre sistemas IDS e IPS demostró que la elección entre ambas tecnologías responde a una decisión estratégica de gestión de riesgos y tolerancia a la indisponibilidad. Mientras que un IDS pasivo ofrece visibilidad profunda y telemetría forense sin introducir latencia ni riesgo de falsos positivos que bloqueen el negocio, el IPS en línea ejerce una defensa proactiva imprescindible contra ataques automatizados, requiriendo mecanismos de resiliencia como la directiva \texttt{bypass} de Netfilter para garantizar una arquitectura de falla abierta (*Fail-Open*).
+  \item \textbf{Superioridad Técnica de Suricata en Infraestructuras Linux:} El análisis comparativo riguroso posicionó a **Suricata 7** como la plataforma más adecuada para el entorno corporativo evaluado. Su modelo multihilo nativo con afinidad de CPU, la aceleración de expresiones regulares mediante **Intel Hyperscan** y, fundamentalmente, su capacidad de decodificación profunda de protocolos de identidad (**Kerberos, SMB y LDAP**) ofrecen una ventaja decisiva frente a Snort 3 en entornos donde se protegen controladores de dominio basados en Samba 4 o Microsoft Windows.
+  \item \textbf{Necesidad de una Arquitectura de Monitoreo Distribuida:} Se evidenció que concentrar el monitoreo exclusivamente en el perímetro de borde (tráfico Norte-Sur) deja desprotegida a la organización frente a movimientos laterales y propagación de amenazas en la red interna. La propuesta arquitectónica demostró que una estrategia de defensa en profundidad eficaz combina sensores pasivos en puertos espejo del switch de distribución con sensores activos de host (\textit{Host-based Network IPS}) en los servidores de mayor valor de la empresa (\texttt{dc1}).
+  \item \textbf{Eficacia Demostrada en Laboratorio:} Las pruebas empíricas ejecutadas ratificaron la consistencia de las firmas de seguridad desarrolladas en \texttt{homelab.rules}. Se constató que en modo IDS las sondas de reconocimiento generaron alertas no disruptivas, mientras que en modo IPS los intentos de explotación web fueron neutralizados y descartados de forma instantánea a nivel de kernel, registrándose eventos enriquecidos en formato EVE JSON para su posterior análisis forense.
+\end{enumerate}
 
-\subsection{Resultado del servidor WEB}
-
-El servidor web (Nginx en contenedor) respondi\'o por el portal y por cada
-\textit{virtual host}: \texttt{sudoers.lan} / \texttt{web.sudoers.lan} /
-\texttt{www.sudoers.lan} sirvieron el sitio por \textbf{HTTPS} con c\'odigo
-\texttt{200 OK}, y los \textit{proxies} hacia impresi\'on, Portainer y las
-m\'aquinas de los administradores enrutaron correctamente por nombre. La
-redirecci\'on autom\'atica de HTTP a HTTPS y el certificado \textit{wildcard}
-de la CA interna verificaron la integraci\'on entre el DNS y el sitio
-publicado.
-
-\subsection{Servicios de los administradores}
-
-La publicaci\'on de los subdominios \texttt{david.sudoers.lan} y
-\texttt{nicolas.sudoers.lan} demostr\'o la arquitectura del proxy inverso: el
-DNS resuelve siempre al punto \'unico de entrada (\texttt{192.168.0.2}) y el
-proxy enruta hacia los backends. De esta forma, los servicios de las m\'aquinas
-de los admins (\texttt{.51}/\texttt{.52}:8080) quedan expuestos con un nombre
-del dominio y el puerto est\'andar 443, sin abrir puertos extra ni depender de
-la direcci\'on de cada m\'aquina.
-
-\subsection{Decisiones de dise\~no validadas}
-
-La tabla \ref{tab:decisiones} verific\'o tres principios clave del proyecto:
+\subsection{Recomendaciones}
 
 \begin{itemize}
-  \item \textbf{El DC nativo es el \'unico DNS del dominio:} no compite con
-        BIND ni con otro servidor; el AD y su zona conviven en el mismo
-        demonio \citep{sambateam2024}.
-  \item \textbf{Una \'unica puerta web:} todo nombre resuelve al proxy y \'el
-        decide el backend; agregar un servicio nuevo no exige cambiar nombres
-        ni clientes.
-  \item \textbf{HTTPS desde el inicio:} la CA interna cifra toda la intranet
-        sin depender de certificados externos; los clientes solo confian en
-        \texttt{ca.crt}.
+  \item \textbf{Fase de Aprendizaje y Sintonización (*Tuning*):} Antes de poner en producción cualquier sensor en modo IPS con acción de descarte (\texttt{drop}), se recomienda operar el sistema durante un período mínimo de dos a cuatro semanas en modo IDS pasivo. Esto permite identificar el comportamiento basal del tráfico corporativo y depurar falsos positivos en transacciones legítimas.
+  \item \textbf{Actualización Continua de Firmas:} Mantener activo el aprovisionamiento automatizado de reglas mediante tareas programadas (\textit{cron jobs}) utilizando la herramienta \texttt{suricata-update}, asegurando la sincronización periódica con el repositorio de firmas comunitarias \textit{Emerging Threats Open}.
+  \item \textbf{Integración con Plataformas de Visualización SIEM:} Centralizar los flujos JSON emitidos en \texttt{eve.json} hacia una plataforma unificada como Graylog, Grafana Loki o Elasticsearch, permitiendo a los analistas de seguridad construir paneles de control interactivos y correlacionar alertas de red con registros de autenticación del Controlador de Dominio.
 \end{itemize}
-
-\subsection{S\'intesis}
-
-Qued\'o verificado el ciclo completo \textbf{DNS + WEB} en el entorno de
-laboratorio: zona del dominio autoritativa, registros de descubrimiento,
-resoluci\'on externa, portal publicado por HTTPS y servicios de los miembros
-expuestos por subdominio. El trabajo deja las bases para fases posteriores:
-activar el webmail y el monitoreo sobre el mismo proxy, incorporar DNSSEC y
-evaluar una CA p\'ublica o la renovaci\'on autom\'atica de certificados.

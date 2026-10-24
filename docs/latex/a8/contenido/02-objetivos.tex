@@ -1,46 +1,18 @@
 % ============================================================================
-%  CAPÍTULO II: OBJETIVOS, ALCANCE Y LÍMITES
+%  CAPÍTULO II: OBJETIVOS
 % ============================================================================
 
-\section{Objetivos del trabajo}
+\section{Objetivos}
 
-\subsection{Objetivo general}
+\subsection{Objetivo General}
 
-Implementar, sobre la instalaci\'on de \textbf{Debian 12 (Bookworm)} del
-servidor \texttt{dc1}, el \textbf{DNS del dominio} \texttt{sudoers.lan}
-administrado por el Controlador de Dominio de \textbf{Samba 4} (zona
-autoritativa y registros de descubrimiento) y un \textbf{servidor web} basado
-en \textbf{Nginx} que publique el portal del proyecto y act\'ue como
-\textit{proxy inverso} de los servicios de la intranet, accesible por nombre
-de dominio y con cifrado \textbf{HTTPS} desde cualquier estaci\'on de la red.
+Evaluar técnica y arquitectónicamente las principales herramientas de código abierto (*Open Source*) de monitoreo para la defensa, con el propósito de formular una propuesta de ubicación óptima en una red empresarial y validar experimentalmente las capacidades de detección pasiva (IDS) y prevención activa (IPS) sobre una infraestructura GNU/Linux.
 
-\subsection{Objetivos espec\'ificos}
+\subsection{Objetivos Específicos}
 
-\begin{enumerate}[label=\textbf{\arabic*.}]
-  \item Confirmar que el DC de \textbf{Samba 4} sirve como \textbf{DNS
-        autoritativo} del dominio: zona \texttt{sudoers.lan} con el backend
-        \textbf{SAMBA\_INTERNAL}, registros A de los servicios y registros
-        SRV de descubrimiento (LDAP, Kerberos).
-  \item Crear los \textbf{registros A} de los servicios publicados
-        (\texttt{web}, \texttt{www}, \texttt{print}, \texttt{portainer},
-        \texttt{joaquin}, \texttt{david}, \texttt{nicolas}) apuntando al
-        servidor \texttt{192.168.0.2}, de forma idempotente mediante el
-        script \texttt{dc/dns-records.sh} y \texttt{samba-tool dns}.
-  \item Configurar el \textbf{reenv\'io hacia Internet} (\textit{forwarder})
-        hacia el router \texttt{192.168.0.1} para que el mismo DNS resuelva
-        nombres externos.
-  \item Desplegar \textbf{Nginx} como contenedor Docker con el portal
-        est\'atico de la intranet y los \textit{virtual hosts} de
-        \texttt{sudoers.lan}, \texttt{print.sudoers.lan} y
-        \texttt{portainer.sudoers.lan}.
-  \item Implementar \textbf{HTTPS} con \textbf{CA interna} y certificado
-        \textit{wildcard} \texttt{*.sudoers.lan}, con redirecci\'on autom\'atica
-        de HTTP (80) a HTTPS (443).
-  \item Exponer por el \textit{proxy} los \textbf{subdominios de los equipos}
-        de los administradores (\texttt{david.sudoers.lan},
-        \texttt{nicolas.sudoers.lan}) hacia las m\'aquinas
-        \texttt{192.168.0.51:8080} y \texttt{192.168.0.52:8080}.
-  \item Validar el conjunto con pruebas de resoluci\'on (\texttt{dig},
-        \texttt{samba-tool dns query}) y de acceso web (\texttt{curl},
-        navegador), desde el propio servidor y desde un cliente de la red.
+\begin{enumerate}
+  \item \textbf{Efectuar un análisis comparativo técnico y riguroso} entre dos herramientas líderes de la industria (\textbf{Suricata} y \textbf{Snort 3}), examinando sus modelos de concurrencia y paralelismo multihilo, motores de coincidencia de patrones con aceleración por hardware, mecanismos de integración con el kernel Linux y soporte de protocolos empresariales críticos.
+  \item \textbf{Diseñar una propuesta arquitectónica de seguridad} que defina con claridad la ubicación estratégica de los monitores y sensores dentro de la topología de red de una organización, justificando el balance entre visibilidad perimetral (tráfico Norte-Sur) y visibilidad interna de movimientos laterales (tráfico Este-Oeste).
+  \item \textbf{Implementar y verificar experimentalmente} el motor de seguridad seleccionado en la infraestructura del servidor central (\texttt{dc1}, IP \texttt{192.168.0.2}), demostrando mediante pruebas controladas de laboratorio la generación de alertas en modo IDS y el descarte efectivo de paquetes en tiempo real en modo IPS.
+  \item \textbf{Documentar los procedimientos operativos y las reglas de seguridad} personalizadas, estructurando un manual técnico reproducible bajo normativas académicas y estándares internacionales de ciberseguridad.
 \end{enumerate}

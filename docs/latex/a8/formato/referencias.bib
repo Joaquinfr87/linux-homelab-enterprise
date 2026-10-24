@@ -1,79 +1,92 @@
 % ============================================================================
-%  REFERENCIAS BIBLIOGRÁFICAS (Normas APA / BibTeX)
-%  ----------------------------------------------------------------------------
-%  Claves citadas en el informe: agregar aquí TODAS las fuentes usadas con el
-%  paquete apacite. Un `\citep{clave}` sin su entrada aquí genera un `[?]`.
+%  REFERENCIAS BIBLIOGRÁFICAS (Normas APA 7 / BibTeX)
 % ============================================================================
 
-@techreport{rfc1034,
-  author      = {Paul Mockapetris},
-  title       = {Domain Names -- Concepts and Facilities},
-  institution = {Internet Engineering Task Force (IETF)},
-  year        = {1987},
-  type        = {RFC},
-  number      = {1034},
-  doi         = {10.17487/RFC1034},
-  url         = {https://www.rfc-editor.org/info/rfc1034}
+@techreport{nist_idps_2007,
+  author      = {Karen Scarfone and Peter Mell},
+  title       = {Guide to Intrusion Detection and Prevention Systems ({IDPS})},
+  institution = {National Institute of Standards and Technology ({NIST})},
+  year        = {2007},
+  type        = {Special Publication},
+  number      = {SP 800-94},
+  address     = {Gaithersburg, MD},
+  doi         = {10.6028/NIST.SP.800-94},
+  url         = {https://csrc.nist.gov/publications/detail/sp/800-94/final}
 }
 
-@techreport{rfc1035,
-  author      = {Paul Mockapetris},
-  title       = {Domain Names -- Implementation and Specification},
-  institution = {Internet Engineering Task Force (IETF)},
-  year        = {1987},
-  type        = {RFC},
-  number      = {1035},
-  doi         = {10.17487/RFC1035},
-  url         = {https://www.rfc-editor.org/info/rfc1035}
+@book{caswell_snort_2007,
+  author    = {Brian Caswell and Jay Beale and James C. Foster},
+  title     = {Snort 2.0 Intrusion Detection},
+  publisher = {Syngress Publishing},
+  year      = {2003},
+  address   = {Rockland, MA},
+  isbn      = {978-1931836746}
 }
 
-@techreport{rfc2782,
-  author      = {Arnt Gulbrandsen and Paul Vixie and Levon Esibov},
-  title       = {A {DNS} {RR} for specifying the location of services ({DNS} {SRV})},
-  institution = {Internet Engineering Task Force (IETF)},
+@manual{oisf_suricata_2024,
+  author       = {{Open Information Security Foundation (OISF)}},
+  title        = {Suricata User Guide -- Release 7.0},
+  organization = {OISF},
+  year         = {2024},
+  address      = {Waltham, MA},
+  url          = {https://docs.suricata.io/en/latest/}
+}
+
+@manual{cisco_snort3_2024,
+  author       = {{Cisco Talos Intelligence Group}},
+  title        = {Snort 3 User Manual and Architecture Specification},
+  organization = {Cisco Systems, Inc.},
+  year         = {2024},
+  url          = {https://docs.snort.org/}
+}
+
+@techreport{rfc2828,
+  author      = {Robert Shirey},
+  title       = {Internet Security Glossary},
+  institution = {Internet Engineering Task Force ({IETF})},
   year        = {2000},
   type        = {RFC},
-  number      = {2782},
-  doi         = {10.17487/RFC2782},
-  url         = {https://www.rfc-editor.org/info/rfc2782}
+  number      = {2828},
+  doi         = {10.17487/RFC2828},
+  url         = {https://www.rfc-editor.org/info/rfc2828}
 }
 
-@manual{iscBIND9,
-  author       = {{Internet Systems Consortium}},
-  title        = {{BIND} 9 Administrator Reference Manual},
-  organization = {Internet Systems Consortium (ISC)},
-  year         = {2024},
-  url          = {https://bind9.readthedocs.io/}
+@techreport{rfc4732,
+  author      = {Mark Handley and Eric Rescorla},
+  title       = {Internet Denial-of-Service Considerations},
+  institution = {Internet Engineering Task Force ({IETF})},
+  year        = {2006},
+  type        = {RFC},
+  number      = {4732},
+  doi         = {10.17487/RFC4732},
+  url         = {https://www.rfc-editor.org/info/rfc4732}
 }
 
-@manual{sambateam2024,
-  author       = {{The Samba Team}},
-  title        = {Setting up {Samba} as an {Active Directory} {Domain Controller}},
-  organization = {Samba Documentation Project},
-  year         = {2024},
-  url          = {https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller}
+@article{intel_hyperscan_2019,
+  author  = {Xiang Wang and Yang Hong and Harry Chang and KyoungSoo Park and Geoff Langdale and Jiayu Hu and Heqing Zhu},
+  title   = {Hyperscan: A High Performance Multiple Regex Matching Library for Deep Packet Inspection},
+  journal = {ACM SIGCOMM Computer Communication Review},
+  volume  = {49},
+  number  = {5},
+  pages   = {26--33},
+  year    = {2019},
+  doi     = {10.1145/3375814.3375819}
 }
 
-@manual{msft_activedirectory,
-  author       = {{Microsoft Corporation}},
-  title        = {Active Directory Domain Services Overview},
-  organization = {Microsoft Learn},
+@manual{netfilter_nfqueue_2023,
+  author       = {{The Netfilter Project}},
+  title        = {libnetfilter\_queue: Userspace Library for Packets Queued by Netfilter},
+  organization = {Netfilter Core Team},
   year         = {2023},
-  url          = {https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/get-started/virtual-dc/active-directory-domain-services-overview}
+  url          = {https://www.netfilter.org/projects/libnetfilter_queue/}
 }
 
-@manual{nginxDocs,
-  author       = {{F5, Inc.}},
-  title        = {{Nginx} Documentation},
-  organization = {F5 / NGINX},
-  year         = {2024},
-  url          = {https://nginx.org/en/docs/}
-}
-
-@book{tanenbaum2012,
-  author    = {Andrew S. Tanenbaum and David J. Wetherall},
-  title     = {Redes de computadoras},
-  edition   = {5},
-  publisher = {Pearson Educaci\'on},
-  year      = {2012}
+@book{combs_wireshark_2020,
+  author    = {Gerald Combs and Laura Chappell},
+  title     = {Wireshark Network Analysis: The Official Wireshark Certified Network Analyst Study Guide},
+  publisher = {Chappell University},
+  year      = {2020},
+  edition   = {3rd},
+  address   = {San Jose, CA},
+  isbn      = {978-1893939678}
 }

@@ -1,0 +1,405 @@
+% ============================================================================
+%  CAPÍTULO III: DESARROLLO DEL TRABAJO
+% ============================================================================
+
+\section{Desarrollo del trabajo}
+
+Este cap\'itulo documenta, paso a paso, la configuraci\'on del \textbf{DNS del
+dominio} (servido por el Controlador de Dominio de Samba) y del \textbf{servidor
+web} de la organizaci\'on (Nginx como \textit{proxy inverso}), sobre el
+servidor \'unico \texttt{dc1}. Cada bloque describe desde la arquitectura de la
+soluci\'on hasta las pruebas de resoluci\'on de nombres y de acceso al portal,
+incluyendo la justificaci\'on t\'ecnica de cada una de las decisiones tomadas.
+
+% ============================================================================
+\section{Arquitectura general del par DNS+WEB}
+
+El proyecto concentra todos los servicios en un \'unico servidor
+(\texttt{192.168.0.2}), por lo que el DNS del dominio y la puerta web
+comparten esa misma direcci\'on. La separaci\'on es \textbf{l\'ogica}, no
+f\'isica: \citep{tanenbaum2012}
+
+\begin{itemize}
+  \item \textbf{DNS:} el Controlador de Dominio de \textbf{Samba 4} sirve la
+        zona autoritativa \texttt{sudoers.lan} en el puerto 53 de forma
+        \textbf{nativa} (fuera de Docker), usando el backend
+        \textbf{SAMBA\_INTERNAL}.
+  \item \textbf{WEB:} \textbf{Nginx} corre en un \textbf{contenedor Docker}
+        (servicio \texttt{web} del \texttt{docker-compose.yml}) y publica los
+        puertos 80/443 del host. Act\'ua como \textit{proxy inverso}: toda
+        petici\'on \texttt{*.sudoers.lan} entra por \'el y es enrutada al
+        servicio que corresponda \citep{nginxDocs}.
+\end{itemize}
+
+La tabla \ref{tab:mapa-nombres} resume los nombres gestionados por el DNS del
+dominio y a qu\'e backend los dirige el servidor web.
+
+\begin{table}[H]
+  \centering
+  \caption{Mapa de nombres gestionados por el DNS de \texttt{sudoers.lan}}
+  \contenidoConFuente{%
+    \begin{tablaAPA}
+      \begin{tabular}{@{}p{4.6cm}p{6.2cm}c@{}}
+        \toprule
+        \textbf{Nombre} & \textbf{Backend del proxy} & \textbf{Registro} \\
+        \midrule
+        \texttt{sudoers.lan} / \texttt{web} / \texttt{www} & Portal est\'atico (Nginx) & A, CNAME \\
+        \texttt{dc1.sudoers.lan} & DC (DNS, SMB) & A \\
+        \texttt{print.sudoers.lan} & \texttt{tso-print:631} (CUPS) & A \\
+        \texttt{portainer.sudoers.lan} & \texttt{tso-portainer:9000} & A \\
+        \texttt{joaquin.sudoers.lan} & P\'agina del equipo (est\'atico) & A \\
+        \texttt{david.sudoers.lan} & \texttt{192.168.0.51:8080} & A \\
+        \texttt{nicolas.sudoers.lan} & \texttt{192.168.0.52:8080} & A \\
+        \texttt{\_ldap.\_tcp.dc.\_msdcs} & \texttt{dc1}:389 (LDAP) & SRV \\
+        \bottomrule
+      \end{tabular}
+    \end{tablaAPA}%
+  }{Elaboraci\'on propia.}
+  \label{tab:mapa-nombres}
+\end{table}
+
+% ============================================================================
+\section{El DNS del dominio: Samba AD (SAMBA\_INTERNAL)}
+
+\subsection{Autoridad de la zona y backend DNS}
+
+Un dominio de Active Directory se apoya por completo en el DNS: los clientes
+lo consultan para descubrir d\'onde est\'a cada servicio del dominio, tanto
+los nombres comunes (\texttt{web}) como los registros de descubrimiento (SRV)
+\citep{msft_activedirectory}. Por ello, durante el aprovisionamiento del DC se
+eligi\'o expl\'icitamente que el propio Samba administre la zona:
+
+\begin{lstlisting}[style=terminal]
+$ samba-tool domain provision \
+    --realm=SUDOERS.LAN --domain=SUDOERS \
+    --server-role=dc --dns-backend=SAMBA_INTERNAL \
+    --use-rfc2307 --host-name=dc1 --host-ip=192.168.0.2 \
+    --option="dns forwarder = 192.168.0.1"
+\end{lstlisting}
+
+Con el backend \textbf{SAMBA\_INTERNAL} el DC es el servidor de nombres
+autoritativo de la zona \texttt{sudoers.lan}: guarda los registros dentro del
+directorio (no en archivos de zona BIND) y los actualiza din\'amicamente.
+Adem\'as se le indic\'o un \textit{forwarder} hacia el router
+(\texttt{192.168.0.1}) para resolver nombres externos de Internet
+\citep{iscBIND9}. La zona queda registrada en \texttt{/etc/samba/smb.conf}
+junto con el rol del servidor:
+
+\begin{lstlisting}[style=terminal]
+$ grep -E 'server role|dns|realm' /etc/samba/smb.conf
+[global]
+    server role = active directory domain controller
+    realm = SUDOERS.LAN
+    dns forwarder = 192.168.0.1
+    dns update command = /usr/sbin/samba_dnsupdate
+\end{lstlisting}
+
+\capturaAPA{fig:smb-dns}{Zona \texttt{sudoers.lan} y rol de DC en
+\texttt{smb.conf}}{captura-smb-dns.png}{Captura de pantalla mostrando la salida de \texttt{grep} sobre \texttt{/etc/samba/smb.conf} con el rol \texttt{active directory domain controller}, el \textit{realm} \texttt{SUDOERS.LAN} y la directiva \texttt{dns forwarder = 192.168.0.1}.}
+
+\subsection{Registros A de los servicios}
+
+Como todos los servicios corren en el \'unico servidor de la red, los
+registros A de la zona apuntan, salvo el DC mismo, al \textbf{proxy inverso}
+\texttt{192.168.0.2}. El listado completo de la zona se consulta con
+\texttt{samba-tool dns}:
+
+\begin{lstlisting}[style=terminal]
+$ kinit administrator                    # ticket de administrador
+$ samba-tool dns query dc1.sudoers.lan sudoers.lan @ ALL -k yes
+Name=, Records=8, Children=0
+ DC@SUDOERS.LAN: type=A, value=192.168.0.2
+ web@SUDOERS.LAN: type=A, value=192.168.0.2
+ joaquin@SUDOERS.LAN: type=A, value=192.168.0.2
+ print@SUDOERS.LAN: type=A, value=192.168.0.2
+ portainer@SUDOERS.LAN: type=A, value=192.168.0.2
+ david@SUDOERS.LAN: type=A, value=192.168.0.2
+ nicolas@SUDOERS.LAN: type=A, value=192.168.0.2
+\end{lstlisting}
+
+\capturaAPA{fig:zona-dns}{Zona DNS completa de \texttt{sudoers.lan} consultada
+con \texttt{samba-tool dns}}{captura-zona-dns.png}{Captura de pantalla mostrando la salida de \texttt{samba-tool dns query dc1.sudoers.lan sudoers.lan @ ALL} con los registros A de \texttt{dc1}, \texttt{web}, \texttt{print}, \texttt{portainer} y de los administradores, todos hacia \texttt{192.168.0.2}.}
+
+\subsection{Registro A del Controlador de Dominio}
+
+El registro \texttt{A} es la tabla nombre$\rightarrow$IP del dominio: toda
+consulta al DNS de la red empieza pidiendo \texttt{dc1.sudoers.lan}. La
+resoluci\'on directa se verifica con \texttt{dig}:
+
+\begin{lstlisting}[style=terminal]
+$ dig web.sudoers.lan
+;; ANSWER SECTION:
+web.sudoers.lan. 900 IN A 192.168.0.2
+\end{lstlisting}
+
+\capturaAPA{fig:dig-web}{Resoluci\'on de \texttt{web.sudoers.lan} por el DNS del
+DC}{captura-dig-web.png}{Captura de pantalla mostrando la salida de \texttt{dig web.sudoers.lan} con la respuesta \texttt{A 192.168.0.2}.}
+
+\subsection{Registros de los equipos de administradores}
+
+Los nombres de los miembros del equipo (\texttt{david.sudoers.lan} y
+\texttt{nicolas.sudoers.lan}) tambi\'en resuelven hacia el \textbf{proxy}
+(\texttt{192.168.0.2}), y no hacia las m\'aquinas de sus due\~nos: como la
+puerta de entrada es \'unica, el backend puede cambiar de m\'aquina o de
+puerto sin que los nombres ni los clientes cambien. Los registros se crean con
+el script \textbf{idempotente} \texttt{dc/dns-records.sh}, que usa
+\texttt{samba-tool dns add} con autenticaci\'on Kerberos obligatoria:
+
+\begin{lstlisting}[style=terminal]
+$ sudo kinit administrator
+$ sudo bash dc/dns-records.sh
+==> Servicios web alojados en m\'aquinas de admins (via proxy) ...
+  ok    david.sudoers.lan    ->  192.168.0.2  (ya existe)
+  ok    nicolas.sudoers.lan  ->  192.168.0.2  (ya existe)
+\end{lstlisting}
+
+\capturaAPA{fig:dns-records}{Creaci\'on idempotente de los registros de los
+administradores}{captura-dns-records.png}{Captura de pantalla mostrando la salida de \texttt{sudo bash dc/dns-records.sh} con los registros \texttt{david} y \texttt{nicolas} apuntando a \texttt{192.168.0.2}.}
+
+\subsection{Registros SRV de descubrimiento}
+
+Los registros \textbf{SRV} son las ``gu\'ias de servicios'' del dominio
+\citep{rfc2782}: le dicen a cualquier cliente d\'onde est\'a el LDAP, el
+Kerberos o el DC. Sin ellas, las estaciones no encuentran el dominio. El
+aprovisionamiento de Samba los gener\'o autom\'aticamente:
+
+\begin{lstlisting}[style=terminal]
+$ dig _ldap._tcp.dc._msdcs.sudoers.lan SRV
+;; ANSWER SECTION:
+_ldap._tcp.dc._msdcs.sudoers.lan. 900 IN SRV 0 100 389 dc1.sudoers.lan.
+\end{lstlisting}
+
+\capturaAPA{fig:dig-srv}{Registros SRV de descubrimiento del dominio generados
+por el DC}{captura-dig-srv.png}{Captura de pantalla mostrando la salida de \texttt{dig \_ldap.\_tcp.dc.\_msdcs.sudoers.lan SRV} con el registro SRV apuntando al puerto 389 de \texttt{dc1.sudoers.lan}.}
+
+\subsection{Reenviador hacia Internet}
+
+Para que los clientes resuelvan tambi\'en nombres externos, el DC funciona con
+un \textit{forwarder} hacia \textbf{el router de la red}. De esta manera una
+\'unica respuesta del DNS del dominio cubre tanto los nombres internos (zona
+\texttt{sudoers.lan}) como los de Internet \citep{iscBIND9}:
+
+\begin{lstlisting}[style=terminal]
+$ dig google.com @192.168.0.2 +short
+142.250.78.78          # resolución externa vía el forwarder 192.168.0.1
+\end{lstlisting}
+
+\capturaAPA{fig:dig-externo}{Resoluci\'on de nombres externos a trav\'es del
+\textit{forwarder}}{captura-dig-externo.png}{Captura de pantalla mostrando la salida de \texttt{dig google.com @192.168.0.2} con una direcci\'on IP p\'ublica resuelta.}
+
+\subsection{Entrega del DNS a la red (integraci\'on con DHCP)}
+
+Para que una estaci\'on reci\'en conectada quede lista sin intervenci\'on
+manual, el servidor DHCP \textbf{Kea} (en contenedor, con \texttt{network\_mode:
+host}) entrega junto con la IP las opciones de red: \textbf{DNS
+\texttt{192.168.0.2}}, dominio \texttt{sudoers.lan}, gateway
+\texttt{192.168.0.1} y NTP \texttt{192.168.0.2}. De este modo toda m\'aquina
+de la red resuelve los nombres internos contra el DNS del DC de forma
+transparente.
+
+% ============================================================================
+\section{Servidor WEB: Nginx como proxy inverso}
+
+\subsection{Despliegue como contenedor}
+
+El servidor web se despleg\'o como \textbf{contenedor Docker} del proyecto
+(servicio \texttt{web} del \texttt{docker-compose.yml}), a diferencia del DC
+que corre nativo. La imagen es \texttt{nginx:1.27-alpine} y publica los
+puertos 80 y 443 del host; el portal est\'atico y los certificados TLS llegan
+por vol\'umenes:
+
+\begin{lstlisting}[style=terminal]
+web:
+  build: ./services/web          # nginx:1.27-alpine
+  container_name: tso-web
+  ports:
+    - "80:80"                    # redirige a HTTPS
+    - "443:443"                  # HTTPS (termina TLS)
+  volumes:
+    - ./services/web/public:/usr/share/nginx/html:ro
+    - ./services/web/tls:/etc/nginx/tls:ro      # CA + cert wildcard
+  restart: always                # la puerta web debe estar siempre arriba
+\end{lstlisting}
+
+\capturaAPA{fig:compose-web}{Servicio \texttt{web} definido en el
+\texttt{docker-compose.yml}}{captura-compose-web.png}{Captura de pantalla mostrando el bloque \texttt{web:} del \texttt{docker-compose.yml} con los puertos 80/443, los vol\'umenes del portal y de TLS, y la directiva \texttt{restart: always}.}
+
+\subsection{El portal y los virtual hosts}
+
+Nginx enruta por \textbf{nombre} cada petici\'on: el portal de la intranet
+responde a \texttt{sudoers.lan}, \texttt{web.sudoers.lan} y
+\texttt{www.sudoers.lan} desde el directorio est\'atico, mientras el resto de
+los \textit{virtual hosts} (\texttt{print}, \texttt{portainer}, los miembros)
+son \textit{proxies} hacia sus backends. Adem\'as, \textbf{todo HTTP (80)
+redirige a HTTPS (443)}: la web nunca se sirve en claro.
+
+\begin{lstlisting}[style=terminal]
+server {
+    listen 80;                                 # HTTP: solo redirige
+    server_name sudoers.lan web.sudoers.lan www.sudoers.lan;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;                            # HTTPS: portal
+    http2 on;
+    server_name sudoers.lan web.sudoers.lan www.sudoers.lan;
+    ssl_certificate     /etc/nginx/tls/server.crt;
+    ssl_certificate_key /etc/nginx/tls/server.key;
+    root  /usr/share/nginx/html;
+    index index.html;
+}
+\end{lstlisting}
+
+\capturaAPA{fig:nginx-conf}{Virtual host del portal y redirecci\'on HTTP a
+HTTPS en \texttt{services/web/nginx.conf}}{captura-nginx-conf.png}{Captura de pantalla mostrando el contenido de \texttt{services/web/nginx.conf} con el bloque \texttt{server} del portal y la directiva \texttt{return 301 https://\$host\$request\_uri}.}
+
+\subsection{HTTPS con CA interna}
+
+El sitio se publica por \textbf{HTTPS} con un certificado \textit{wildcard}
+\texttt{*.sudoers.lan} firmado por una \textbf{CA interna} (``SUDOERS.LAN
+CA''), generada con el script \texttt{services/web/tls-gen.sh} usando
+\texttt{openssl}:
+
+\begin{lstlisting}[style=terminal]
+$ sudo bash services/web/tls-gen.sh
+=> Generando CA interna ...
+=> Generando certificado para *.sudoers.lan ...
+============================================
+  CA:       ca.crt (instal\'a en los clientes para confiar)
+  Server:   server.crt / server.key  (*.sudoers.lan, 825 d\'ias)
+============================================
+$ docker compose up -d --build web
+\end{lstlisting}
+
+\capturaAPA{fig:tls-gen}{Generaci\'on de la CA interna y del certificado
+\textit{wildcard}}{captura-tls-gen.png}{Captura de pantalla mostrando la salida de \texttt{sudo bash services/web/tls-gen.sh} con la creaci\'on de la CA y del certificado \texttt{*.sudoers.lan}.}
+
+El certificado cubre los SAN \texttt{sudoers.lan}, \texttt{*.sudoers.lan},
+\texttt{web}, \texttt{www}, \texttt{print}, \texttt{portainer}, \texttt{mail},
+\texttt{webmail}, \texttt{dashboard} y los subdominios de los miembros. Como
+la CA es interna, cada cliente debe instalar \texttt{ca.crt} como CA de
+confianza del sistema para evitar la advertencia del navegador. El acceso por
+HTTPS se verifica localmente con \texttt{curl}:
+
+\begin{lstlisting}[style=terminal]
+$ curl -skI https://web.sudoers.lan
+HTTP/1.1 200 OK
+Server: nginx
+...
+\end{lstlisting}
+
+\capturaAPA{fig:curl-web}{Acceso HTTPS al portal servido por Nginx}{captura-curl-web.png}{Captura de pantalla mostrando la salida de \texttt{curl -skI https://web.sudoers.lan} con el c\'odigo \texttt{200 OK} y el encabezado \texttt{Server: nginx}.}
+
+\subsection{Proxy a los servicios: impresi\'on y Portainer}
+
+Los servicios contenedores sin exposi\'on p\'ublica se alcanzan a trav\'es
+del \texttt{proxy}: \texttt{print.sudoers.lan} y \texttt{portainer.sudoers.lan}
+resuelven (DNS) hacia \texttt{192.168.0.2} y Nginx los reenv\'ia a los
+contenedores \texttt{tso-print} y \texttt{tso-portainer} por la red interna de
+Docker, sin publicar puertos adicionales en el host:
+
+\begin{lstlisting}[style=terminal]
+server {
+    listen 443 ssl;
+    server_name print.sudoers.lan;
+    location / {
+        resolver 127.0.0.11 valid=10s ipv6=off;   # DNS interno de Docker
+        set $cups_upstream http://tso-print:631;
+        proxy_pass $cups_upstream;
+    }
+}
+\end{lstlisting}
+
+Solo el proxy conoce la direcci\'on interna de cada backend; desde la LAN el
+\'unico puerto visible es el 443 del proxy \citep{nginxDocs}.
+
+\subsection{Subdominios de los administradores (david / nicolas)}
+
+David y Nicol\'as alojan su propio servicio web \textbf{en sus m\'aquinas}
+(\texttt{192.168.0.51} y \texttt{192.168.0.52}, puerto \texttt{8080}). Su DNS
+apunta al proxy (\texttt{192.168.0.2}) y el proxy alcanza la m\'aquina por la
+red plana:
+
+\begin{lstlisting}[style=terminal]
+server {
+    listen 443 ssl;
+    server_name david.sudoers.lan;
+    location / {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $david_upstream http://192.168.0.51:8080;
+        proxy_pass $david_upstream;
+        proxy_connect_timeout 5s;
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=terminal]
+$ dig david.sudoers.lan +short          # el cliente resuelve el proxy
+192.168.0.2
+$ curl -sk https://david.sudoers.lan    # y el proxy responde la m\'aquina
+... (contenido del servicio de David) ...
+\end{lstlisting}
+
+\capturaAPA{fig:curl-david}{Servicio de la m\'aquina de David publicado por el
+proxy}{captura-curl-david.png}{Captura de pantalla mostrando la resoluci\'on \texttt{dig david.sudoers.lan +short} con \texttt{192.168.0.2} y la respuesta de \texttt{curl -sk https://david.sudoers.lan} con el contenido del servicio del administrador.}
+
+Para el cliente no importa el puerto interno: afuera solo existe la puerta
+est\'andar \texttt{443} y los nombres quedan libres de direcciones y puertos.
+
+% ============================================================================
+\section{Pruebas de integraci\'on}
+
+\subsection{Resoluci\'on y acceso desde un cliente de la red}
+
+Un equipo cliente de la red \texttt{192.168.0.0/24} (con el DNS
+\texttt{192.168.0.2} entregado por DHCP) consulta el dominio y accede al
+portal sin configuraci\'on manual:
+
+\begin{lstlisting}[style=terminal]
+$ dig web.sudoers.lan +short             # desde el cliente
+192.168.0.2
+$ curl -sk https://web.sudoers.lan | head -5
+<!DOCTYPE html>
+<html lang="es">
+... (portal de la intranet) ...
+\end{lstlisting}
+
+\capturaAPA{fig:cliente-dig}{Resoluci\'on de nombres desde un cliente de la
+red}{captura-cliente-dig.png}{Captura de pantalla mostrando la salida de \texttt{dig web.sudoers.lan} ejecutada en un cliente, respondiendo \texttt{192.168.0.2}.}
+
+\capturaAPA{fig:cliente-web}{Acceso HTTPS al portal desde el navegador del
+cliente}{captura-cliente-web.png}{Captura de pantalla del navegador de un cliente mostrando el portal de la intranet cargado por \texttt{https://web.sudoers.lan} con el candado de confianza de la CA interna.}
+
+La misma validaci\'on se repite para el portal, la consola de impresi\'on, el
+panel de Portainer y las p\'aginas de los miembros, confirmando que
+\textbf{DNS + proxy web} funcionan como un \'unico sistema de nombres y
+publicaci\'on.
+
+\subsection{Resumen de decisiones t\'ecnicas}
+
+La tabla \ref{tab:decisiones} resume las decisiones m\'as relevantes de la
+configuraci\'on y su justificaci\'on.
+
+\begin{table}[H]
+  \centering
+  \caption{Decisiones t\'ecnicas y justificaci\'on}
+  \label{tab:decisiones}
+  \contenidoConFuente{%
+    \begin{tablaAPA}
+      \begin{tabular}{@{}p{5cm}p{8.5cm}@{}}
+      \toprule
+      \textbf{Decisi\'on} & \textbf{Justificaci\'on} \\
+      \midrule
+      DNS del dominio en el DC (SAMBA\_INTERNAL) & El AD exige que el DC sea quien sirva la zona \texttt{sudoers.lan} y sus registros SRV \citep{sambateam2024} \\
+      Registros A apuntan SIEMPRE al proxy (\texttt{192.168.0.2}) & Una \'unica puerta: los backends cambian sin cambiar los nombres \citep{msft_activedirectory} \\
+      Nginx en contenedor (docker-compose) & La web es un servicio m\'as del compose; solo el DC corre nativo \\
+      TLS con CA interna + wildcard \texttt{*.sudoers.lan} & Cifra la intranet sin depender de una CA p\'ublica ni de dominios externos \\
+      HTTP $\rightarrow$ HTTPS (301) y \texttt{ssl\_reject\_handshake} & Proh\'ibe tr\'afico en claro y el handshake a nombres desconocidos \\
+      \texttt{dc/dns-records.sh} idempotente & Se puede ejecutar varias veces sin duplicar registros (RECORD\_ALREADY\_EXISTS) \\
+      \textit{Forwarder} hacia \texttt{192.168.0.1} & Resuelve Internet reutilizando la salida del router \\
+      \bottomrule
+      \end{tabular}
+    \end{tablaAPA}%
+  }{Elaboraci\'on propia.}
+\end{table}

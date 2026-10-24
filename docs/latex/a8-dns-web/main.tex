@@ -1,0 +1,109 @@
+% ============================================================================
+%  DOCUMENTO PRINCIPAL — Actividad 8: Configuración DNS con servidor WEB
+%  ----------------------------------------------------------------------------
+%  Aquí SOLO se integran los módulos. No se escribe contenido ni formato aquí.
+%
+%  Regla de oro del proyecto:
+%    - formato/preambulo.sty  -> toda la configuración y paquetes (APA + Arial)
+%    - formato/portada.tex    -> portada (datos institucionales)
+%    - contenido/*.tex        -> el contenido real del informe
+%    - anexos/*.tex           -> material complementario
+%
+%  Para compilar (desde latex/a8/):
+%    pdflatex main && bibtex main && pdflatex main && pdflatex main
+%  o directamente: make
+% ============================================================================
+
+\documentclass[12pt,a4paper]{article}
+
+% --- Carga de la configuración de formato (APA + Arial) ---------------------
+\usepackage{formato/preambulo}
+
+% ============================================================================
+%  DATOS DEL DOCUMENTO  (editar aquí)
+% ============================================================================
+\newcommand{\tituloDocumento}{Configuraci\'on de DNS (Samba AD DC) y Servidor WEB (Nginx) en Linux con Debian}
+\newcommand{\equipo}{Grupo 1 Sudoers}
+\newcommand{\integrantes}{%
+  Joaquin Alessandro Felipez Rojas \par
+  Nicolas Sebastian Reguerin Meneses \par
+  David Willy Cruz Huanca}
+\newcommand{\universidad}{Universidad Privada Domingo Savio}
+\newcommand{\facultad}{Facultad de Ingenier\'ia}
+\newcommand{\carrera}{Ingenier\'ia en Sistemas}
+\newcommand{\asignatura}{Taller de Sistemas Operativos II}
+\newcommand{\docente}{Jose Abraham Mita Huanca}
+\newcommand{\ciudad}{Cochabamba--Bolivia}
+\newcommand{\fechaEntrega}{25/09/2026}
+
+\begin{document}
+
+% --- Numeración: romano antes del Capítulo I, arábigo desde el Capítulo I ---
+\pagenumbering{roman}
+
+% --- Portada (no muestra número y no cuenta: el entorno titlepage parte de 1)
+\input{formato/portada}
+
+% --- Índices ----------------------------------------------------------------
+\newpage
+{\indicesCompactos\tableofcontents}
+\newpage
+{\indicesCompactos\listoftables}
+\newpage
+{\indicesCompactos\listoffigures}
+\clearpage
+
+% --- Cambio a numeración arábiga para el contenido principal -------------
+\clearpage
+\pagenumbering{arabic}
+
+% ============================================================================
+%  CONTENIDO  (un capítulo con su carátula y un archivo por sección)
+% ============================================================================
+
+% --- CAPÍTULO I --------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO I}{INTRODUCCI\'ON}
+\input{contenido/01-introduccion}
+
+% --- CAPÍTULO II -------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO II}{OBJETIVOS, ALCANCE Y L\'IMITES}
+\input{contenido/02-objetivos}
+\input{contenido/03-alcance}
+
+% --- CAPÍTULO III ------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO III}{DESARROLLO DEL TRABAJO}
+\input{contenido/04-desarrollo}
+
+% --- CONCLUSIONES ---------------------------------------------------------
+\newpage
+\encabezadoCapitulo{CONCLUSIONES}{}
+\addcontentsline{toc}{part}{CONCLUSIONES}
+\begingroup
+\setcounter{capitulo}{4}
+\setcounter{section}{0}
+\renewcommand{\thesection}{4.}
+\renewcommand{\theHsection}{4.}
+\renewcommand{\thesubsection}{4.\arabic{subsection}}
+\renewcommand{\theHsubsection}{4.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{4.\arabic{subsection}.\arabic{subsubsection}}
+\renewcommand{\theHsubsubsection}{4.\arabic{subsection}.\arabic{subsubsection}}
+\input{contenido/05-conclusiones}
+\endgroup
+
+% --- Referencias (APA) ------------------------------------------------------
+\newpage
+\encabezadoCapitulo{REFERENCIAS}{}
+\addcontentsline{toc}{part}{REFERENCIAS}
+\bibliographystyle{apacite}
+\nocite{*}
+\bibliography{formato/referencias}
+
+% --- Anexos (material complementario, tras las referencias) ------------------
+% \newpage
+% \encabezadoCapitulo{ANEXOS}{}
+% \pdfbookmark[0]{ANEXOS}{anexos}%
+% \addcontentsline{toc}{part}{ANEXOS}
+% \appendix
+% \input{anexos/anexo-a}
+
+\end{document}

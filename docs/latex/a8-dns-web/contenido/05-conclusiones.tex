@@ -1,0 +1,62 @@
+% ============================================================================
+%  CAPITULO IV: CONCLUSIONES
+% ============================================================================
+
+\section{Conclusiones}
+
+\subsection{Resultado del DNS}
+
+La configuraci\'on del DNS del dominio mediante el Controlador de Dominio de
+\textbf{Samba 4} (backend \textbf{SAMBA\_INTERNAL}) permiti\'o resolver de
+manera estable la zona autoritativa \texttt{sudoers.lan}. Las consultas desde
+el servidor y desde un cliente de la red devolvieron los registros A de los
+servicios, los registros SRV de descubrimiento (LDAP, Kerberos) y las
+resoluciones externas a trav\'es del \textit{forwarder}, lo que confirma que
+la integraci\'on entre el directorio y el DNS funciona correctamente y que los
+clientes descubren el dominio sin configuraci\'on manual.
+
+\subsection{Resultado del servidor WEB}
+
+El servidor web (Nginx en contenedor) respondi\'o por el portal y por cada
+\textit{virtual host}: \texttt{sudoers.lan} / \texttt{web.sudoers.lan} /
+\texttt{www.sudoers.lan} sirvieron el sitio por \textbf{HTTPS} con c\'odigo
+\texttt{200 OK}, y los \textit{proxies} hacia impresi\'on, Portainer y las
+m\'aquinas de los administradores enrutaron correctamente por nombre. La
+redirecci\'on autom\'atica de HTTP a HTTPS y el certificado \textit{wildcard}
+de la CA interna verificaron la integraci\'on entre el DNS y el sitio
+publicado.
+
+\subsection{Servicios de los administradores}
+
+La publicaci\'on de los subdominios \texttt{david.sudoers.lan} y
+\texttt{nicolas.sudoers.lan} demostr\'o la arquitectura del proxy inverso: el
+DNS resuelve siempre al punto \'unico de entrada (\texttt{192.168.0.2}) y el
+proxy enruta hacia los backends. De esta forma, los servicios de las m\'aquinas
+de los admins (\texttt{.51}/\texttt{.52}:8080) quedan expuestos con un nombre
+del dominio y el puerto est\'andar 443, sin abrir puertos extra ni depender de
+la direcci\'on de cada m\'aquina.
+
+\subsection{Decisiones de dise\~no validadas}
+
+La tabla \ref{tab:decisiones} verific\'o tres principios clave del proyecto:
+
+\begin{itemize}
+  \item \textbf{El DC nativo es el \'unico DNS del dominio:} no compite con
+        BIND ni con otro servidor; el AD y su zona conviven en el mismo
+        demonio \citep{sambateam2024}.
+  \item \textbf{Una \'unica puerta web:} todo nombre resuelve al proxy y \'el
+        decide el backend; agregar un servicio nuevo no exige cambiar nombres
+        ni clientes.
+  \item \textbf{HTTPS desde el inicio:} la CA interna cifra toda la intranet
+        sin depender de certificados externos; los clientes solo confian en
+        \texttt{ca.crt}.
+\end{itemize}
+
+\subsection{S\'intesis}
+
+Qued\'o verificado el ciclo completo \textbf{DNS + WEB} en el entorno de
+laboratorio: zona del dominio autoritativa, registros de descubrimiento,
+resoluci\'on externa, portal publicado por HTTPS y servicios de los miembros
+expuestos por subdominio. El trabajo deja las bases para fases posteriores:
+activar el webmail y el monitoreo sobre el mismo proxy, incorporar DNSSEC y
+evaluar una CA p\'ublica o la renovaci\'on autom\'atica de certificados.

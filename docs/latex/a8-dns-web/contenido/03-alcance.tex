@@ -1,0 +1,149 @@
+% ============================================================================
+%  CAPÍTULO II: OBJETIVOS, ALCANCE Y LÍMITES  (continúa)
+% ============================================================================
+
+\section{Alcance y L\'imites del Trabajo}
+
+Para garantizar una adecuada delimitaci\'on t\'ecnica del proyecto y asegurar
+el cumplimiento riguroso de los objetivos planteados, a continuaci\'on se
+detallan las configuraciones y servicios implementados (alcance), los
+aspectos excluidos de la pr\'actica (l\'imites) y la descripci\'on del
+entorno tecnol\'ogico utilizado en el laboratorio.
+
+\subsection{Alcance del Trabajo}
+
+El alcance comprende la configuraci\'on y verificaci\'on del par
+\textbf{DNS + WEB} sobre el controlador de dominio de la red. Las tareas
+incluidas abarcan:
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item \textbf{DNS del dominio entregado por el DC de Samba:}
+  \begin{itemize}
+    \item Verificaci\'on de la zona autoritativa \texttt{sudoers.lan} servida
+          por el backend \textbf{SAMBA\_INTERNAL} en el puerto 53 (UDP/TCP).
+    \item Registros A de los servicios de la organizaci\'on
+          (\texttt{dc1}, \texttt{web}, \texttt{www}, \texttt{print},
+          \texttt{portainer}, \texttt{joaquin}) apuntando a
+          \texttt{192.168.0.2}.
+    \item Registros de descubrimiento del dominio (SRV de LDAP y Kerberos)
+          generados autom\'aticamente por el aprovisionamiento de Samba.
+    \item Registros A de los equipos de los administradores
+          (\texttt{david.sudoers.lan}, \texttt{nicolas.sudoers.lan}) creados
+          con el script idempotente \texttt{dc/dns-records.sh} y
+          \texttt{samba-tool dns}.
+    \item Reenv\'io recursivo (\textit{forwarder}) hacia el router
+          \texttt{192.168.0.1} para la resoluci\'on de nombres externos.
+  \end{itemize}
+
+  \item \textbf{Servidor WEB de la organizaci\'on (Nginx):}
+  \begin{itemize}
+    \item Despliegue de \textbf{Nginx} como contenedor Docker con los puertos
+          80/443, sirviendo el portal est\'atico y los \textit{virtual hosts}
+          de \texttt{sudoers.lan}, \texttt{print.sudoers.lan} y
+          \texttt{portainer.sudoers.lan}.
+    \item Cifrado \textbf{HTTPS} con \textbf{CA interna} y certificado
+          \textit{wildcard} \texttt{*.sudoers.lan}, con redirecci\'on
+          autom\'atica de HTTP a HTTPS y rechazo del \textit{handshake} para
+          nombres desconocidos.
+    \item \textit{Proxy inverso} hacia los servicios de las m\'aquinas de los
+          administradores (\texttt{192.168.0.51:8080} y
+          \texttt{192.168.0.52:8080}) expuestos por subdominio.
+  \end{itemize}
+
+  \item \textbf{Pruebas de verificaci\'on y evidencia t\'ecnica:}
+  \begin{itemize}
+    \item Consultas DNS (\texttt{dig}, \texttt{samba-tool dns query}) desde el
+          servidor y desde un cliente de la red.
+    \item Acceso web por nombre con \texttt{curl} y navegador, verificando el
+          c\'odigo \texttt{200 OK} y la cadena de confianza de la CA interna.
+  \end{itemize}
+\end{enumerate}
+
+\subsection{L\'imites del Trabajo}
+
+\begin{itemize}
+  \item La pr\'actica se realiza sobre la red aislada
+        \texttt{192.168.0.0/24} del laboratorio; no se administran zonas
+        p\'ublicas en Internet ni se configura \textit{split-horizon} /
+        vistas DNS m\'ultiples.
+  \item No se despliega \textbf{DNSSEC} ni firmas de zona; los registros no se
+        protegen con firmas criptogr\'aficas.
+  \item La CA es \textbf{interna} (no una autoridad p\'ublica): los clientes
+        deben instalar \texttt{ca.crt} para que el navegador no muestre
+        advertencia de confianza.
+  \item El portal servido es de contenido \textbf{est\'atico}; los backends
+        din\'amicos (webmail, monitoreo, aplicaciones) quedan para fases
+        posteriores del proyecto.
+  \item Los subdominios de los administradores dependen de que sus m\'aquinas
+        est\'en encendidas: el proxy responde solo mientras el backend
+        (\texttt{.51}/\texttt{.52}:8080) est\'a disponible.
+  \item No se configura alta disponibilidad ni balanceo de carga del DNS ni
+        del servidor web (controlador \'unico y puerta \'unica).
+\end{itemize}
+
+\subsection{Entorno de Implementaci\'on}
+
+La ejecuci\'on y validaci\'on del proyecto se llevan a cabo sobre el mismo
+servidor \'unico de la red y los puestos clientes de prueba:
+
+\begin{enumerate}[label=\alph*)]
+  \item \textbf{Servidor de DNS y WEB (dc1):}
+  \begin{itemize}
+    \item Sistema operativo: Debian GNU/Linux 12 (Bookworm), 64 bits
+          (\texttt{x86\_64}).
+    \item Tipo de instalaci\'on: host f\'isico dedicado, con el DC de Samba 4
+          ejecut\'andose de forma \textbf{nativa} (nunca en contenedor) y los
+          dem\'as servicios (incluida la web) en contenedores Docker.
+    \item Nombre de host (FQDN): \texttt{dc1.sudoers.lan}.
+    \item Direcci\'on IP fija: \texttt{192.168.0.2/24}.
+    \item Puerta de enlace: \texttt{192.168.0.1} (router TP-Link TL-WR850N).
+    \item DNS del dominio: \texttt{192.168.0.2} (Samba, puerto 53).
+    \item Reenviador DNS: \texttt{192.168.0.1} (router de la red).
+  \end{itemize}
+
+  \item \textbf{Infraestructura de red:}
+  \begin{itemize}
+    \item Segmento de red: \texttt{192.168.0.0/24}, red plana cableada.
+    \item DHCP: servidor Kea (en contenedor, modo \textit{host network}) que
+          entrega a los clientes DNS \texttt{192.168.0.2} y dominio
+          \texttt{sudoers.lan}.
+    \item Dominio y reino Kerberos: \texttt{SUDOERS.LAN}.
+  \end{itemize}
+
+  \item \textbf{Equipos cliente para validaci\'on:}
+  \begin{itemize}
+    \item Clientes GNU/Linux y Windows unidos al dominio, que resuelven los
+          nombres del dominio con el DNS entregado por DHCP y acceden al
+          portal por HTTPS.
+    \item M\'aquinas de administradores \texttt{192.168.0.51} y
+          \texttt{192.168.0.52} (David y Nicol\'as) alojando su servicio web
+          en el puerto \texttt{8080}.
+  \end{itemize}
+\end{enumerate}
+
+La tabla \ref{tab:servidores-a8} resume las caracter\'isticas del entorno.
+
+\begin{table}[H]
+  \centering
+  \caption{Caracter\'isticas del entorno de la Actividad 8}
+  \contenidoConFuente{%
+    \begin{tablaAPA}
+      \begin{tabular}{@{}p{4.2cm}p{8.5cm}@{}}
+        \toprule
+        \textbf{Par\'ametro} & \textbf{Valor} \\
+        \midrule
+        Hostname & \texttt{dc1.sudoers.lan} \\
+        IP fija & \texttt{192.168.0.2/24} \\
+        Puerta de enlace & \texttt{192.168.0.1} \\
+        DNS del dominio & \texttt{192.168.0.2} (Samba AD, SAMBA\_INTERNAL) \\
+        Reenviador DNS & \texttt{192.168.0.1} \\
+        Servidor WEB & Nginx (contenedor Docker) \\
+        Puertos WEB & 80 (redirige) y 443 (HTTPS) \\
+        Certificado & \texttt{*.sudoers.lan} (CA interna) \\
+        Backends proxies & \texttt{192.168.0.51:8080}, \texttt{192.168.0.52:8080} \\
+        \bottomrule
+      \end{tabular}
+    \end{tablaAPA}%
+  }{Elaboraci\'on propia.}
+  \label{tab:servidores-a8}
+\end{table}

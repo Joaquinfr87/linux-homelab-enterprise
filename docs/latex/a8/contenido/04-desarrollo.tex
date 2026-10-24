@@ -16,7 +16,7 @@ Desarrollado y mantenido por la \textit{Open Information Security Foundation} (O
   \item \textbf{Arquitectura Multihilo Nativa (*True Multi-Threading*):} A diferencia de motores monocatenarios históricos, Suricata fue diseñado desde su origen para distribuir de forma eficiente y paralela la carga de procesamiento entre todos los núcleos de CPU disponibles en el sistema operativo. Emplea un esquema de afinidad de CPU (\textit{CPU Pinning}) que permite asignar hilos específicos para la adquisición de paquetes, la decodificación de protocolos, la aplicación de firmas y el volcado de registros en disco, mitigando drásticamente el riesgo de pérdida de paquetes (\textit{packet drops}) en enlaces de alta velocidad.
   \item \textbf{Aceleración de Patrones con Intel Hyperscan:} Integra de forma nativa la biblioteca de expresiones regulares de alto rendimiento \textbf{Hyperscan} \citep{intel_hyperscan_2019}. Esta tecnología aprovecha instrucciones vectoriales del procesador (como AVX2 y AVX-512) para evaluar decenas de miles de firmas concurrentemente en un único paso de inspección, alcanzando tasas de escaneo de múltiples gigabits por segundo sin degradación de latencia.
   \item \textbf{Modos de Adquisición Dual (IDS e IPS):} En modo pasivo (IDS), interactúa directamente con los anillos de memoria del kernel mediante zócalos de alto desempeño \texttt{AF\_PACKET} con búferes en anillo (\textit{ring buffers}). En modo prevención (IPS), se enlaza de forma transparente con el subsistema \textbf{NFQUEUE} del cortafuegos \texttt{nftables} de Linux, permitiendo que las firmas con acción \texttt{drop} descarten físicamente los paquetes anómalos antes de que ingresen a la pila TCP/IP local.
-  \item \textbf{Decodificación Profunda de Protocolos de Directorio Activo:} Posee decodificadores internos altamente especializados para protocolos corporativos fundamentales: **Kerberos (puerto 88)**, **LDAP (puertos 389 y 636)**, **DCERPC** y **SMB/CIFS (puerto 445)**. Esta capacidad resulta crucial para detectar ataques dirigidos contra controladores de dominio Windows o Samba 4, tales como transferencias de archivos sospechosas hacia carpetas compartidas (\textit{shares}), sondeos anómalos o intentos de enumeración de cuentas.
+  \item \textbf{Decodificación Profunda de Protocolos de Directorio Activo:} Posee decodificadores internos altamente especializados para protocolos corporativos fundamentales: \textbf{Kerberos (puerto 88)}, \textbf{LDAP (puertos 389 y 636)}, \textbf{DCERPC} y \textbf{SMB/CIFS (puerto 445)}. Esta capacidad resulta crucial para detectar ataques dirigidos contra controladores de dominio Windows o Samba 4, tales como transferencias de archivos sospechosas hacia carpetas compartidas (\textit{shares}), sondeos anómalos o intentos de enumeración de cuentas.
   \item \textbf{Telemetría Estructurada EVE JSON:} Genera salidas en formato \textbf{EVE} (\textit{Extensible Event Format}), un estándar en formato JSON unificado que registra metadatos de sesiones HTTP, transacciones DNS, certificados TLS, anomalías de flujo y eventos de descarte (\texttt{drop}), lo que facilita su indexación directa en consolas SIEM, Elasticsearch, Zabbix o Grafana.
 \end{itemize}
 
@@ -26,14 +26,14 @@ Desarrollado bajo el liderazgo de Cisco Talos, Snort ha sido históricamente el 
 
 \begin{itemize}
   \item \textbf{Evolución hacia Modelo Multihilo:} Snort 3 abandona el modelo monohilo tradicional que obligaba a ejecutar múltiples instancias independientes del proceso coordinadas externamente. Introduce una arquitectura multihilo modular basada en hilos de procesamiento de paquetes coordinados que comparten una tabla global de configuración e información de estado.
-  \item \textbf{Configuración Basada en Lenguaje Lua:} Reemplaza la sintaxis rígida del archivo \texttt{snort.conf} por scripts en lenguaje **Lua** (\texttt{snort.lua}). Esto dota al motor de una modularidad sin precedentes, permitiendo declarar tablas dinámicas, inspectores de protocolos personalizados y estructuras condicionales en el arranque del servicio.
+  \item \textbf{Configuración Basada en Lenguaje Lua:} Reemplaza la sintaxis rígida del archivo \texttt{snort.conf} por scripts en lenguaje \textbf{Lua} (\texttt{snort.lua}). Esto dota al motor de una modularidad sin precedentes, permitiendo declarar tablas dinámicas, inspectores de protocolos personalizados y estructuras condicionales en el arranque del servicio.
   \item \textbf{Capa de Adquisición de Datos DAQ (*Data Acquisition*):} Snort 3 desacopla la lógica de captura mediante el subsistema DAQ, el cual ofrece controladores modulares para interfaces de red (\texttt{daq\_pcap}, \texttt{daq\_afpacket}, \texttt{daq\_nfq}). Para operar como IPS en sistemas Linux, depende del módulo \texttt{daq\_nfq} para interactuar con las colas de Netfilter.
   \item \textbf{Inspectores de Protocolo Mejorados:} Incorpora inspectores avanzados de nueva generación para el manejo de sesiones TCP, reensamblaje de flujos IP y normalización de transacciones HTTP.
 \end{itemize}
 
 \subsubsection{Rol Complementario de Wireshark}
 
-Si bien el alcance de un IDS/IPS radica en la inspección desatendida y autónoma de flujos masivos de red mediante reglas automatizadas, herramientas como **Wireshark** \citep{combs_wireshark_2020} desempeñan un rol defensivo complementario indispensable:
+Si bien el alcance de un IDS/IPS radica en la inspección desatendida y autónoma de flujos masivos de red mediante reglas automatizadas, herramientas como \textbf{Wireshark} \citep{combs_wireshark_2020} desempeñan un rol defensivo complementario indispensable:
 
 \begin{itemize}
   \item \textbf{Análisis Forense Profundo Interactivo:} Wireshark no actúa como un motor de descarte o alerta continua en un servidor de producción, sino como una herramienta de análisis forense en diferido. Permite a los analistas de seguridad abrir capturas completas de paquetes (\textit{PCAP}) generadas por un sensor IDS para diseccionar campos de encabezado bit a bit, evaluar secuencias TCP anómalas y reconstruir cargas útiles comprometidas.
@@ -72,12 +72,14 @@ A fin de brindar un análisis riguroso y objetivo, la Tabla~\ref{tab:comparativa
 
 \subsubsection{Justificación de Selección para la Infraestructura Corporativa}
 
-Con base en la evaluación técnica previa, se determinó seleccionar **Suricata** como la plataforma defensiva nativa para la infraestructura centralizada en el servidor \texttt{dc1} (\texttt{192.168.0.2}). Las razones determinantes fueron:
+Con base en la evaluación técnica previa, se determinó seleccionar \textbf{Suricata 7} como la plataforma defensiva nativa de producción para la infraestructura centralizada en el servidor corporativo \texttt{dc1} (\texttt{192.168.0.2}), manteniendo a \textbf{Snort 3} como entorno comparativo en contenedor y a \textbf{Wireshark} como plataforma forense de auditoría. Las razones determinantes que sustentan esta decisión de ingeniería son:
 
 \begin{enumerate}
-  \item \textbf{Especialización en Protocolos de Directorio Activo:} Dado que \texttt{dc1} aloja el Controlador de Dominio de la organización (\texttt{SUDOERS.LAN}), la capacidad de Suricata para inspeccionar tráfico SMB, Kerberos y LDAP sin necesidad de software propietario adicional brinda una visibilidad sin igual contra amenazas dirigidas a la identidad empresarial.
-  \item \textbf{Soporte Oficial y Estabilidad en Debian:} Al ser un paquete mantenido directamente en los repositorios oficiales de Debian, su integración con \texttt{systemd}, su actualización automática mediante \texttt{suricata-update} y su mantenimiento a largo plazo resultan óptimos y confiables.
-  \item \textbf{Concurrencia sin Pérdidas:} La arquitectura de hilos de Suricata aprovecha al máximo los núcleos del servidor host, evitando que la inspección profunda de paquetes se convierta en un cuello de botella para las transferencias de archivos o el acceso web.
+  \item \textbf{Especialización en Protocolos de Identidad y Active Directory:} El servidor \texttt{dc1} aloja el Controlador de Dominio de la organización (\texttt{SUDOERS.LAN}) sobre Samba 4 nativo. Suricata integra decodificadores de protocolo de capa 7 altamente maduros y nativos para \textbf{SMB/CIFS (puerto 445)}, \textbf{Kerberos (puerto 88)}, \textbf{LDAP (puertos 389/636)} y \textbf{DCERPC}. Esta capacidad le permite inspeccionar transacciones de autenticación, aperturas de recursos compartidos y consultas de directorio sin requerir software propietario adicional ni preprocesadores externos complejos, detectando tempranamente técnicas de abuso de identidad como \textit{Kerberoasting}, ataques de paso de ticket (*Pass-the-Ticket*) o explotación de fallos en SMB.
+  \item \textbf{Soporte Oficial, Estabilidad y Mantenibilidad en Debian:} Suricata es un paquete de primera clase plenamente empaquetado y mantenido en los repositorios oficiales de Debian GNU/Linux 12 (Bookworm) y 13 (Trixie). Su despliegue nativo permite una integración limpia con el gestor del sistema \texttt{systemd}, aislamiento de privilegios de usuario y un ciclo de actualización de firmas completamente automatizado mediante \texttt{suricata-update}. Por el contrario, desplegar Snort 3 en Debian demanda la compilación manual de múltiples dependencias o el uso de contenedores Docker con privilegios elevados de red (\texttt{network\_mode: host} y capacidades \texttt{CAP\_NET\_ADMIN}), lo que incrementa la superficie de ataque y la complejidad operativa.
+  \item \textbf{Concurrencia Simétrica y Desempeño Multihilo:} La arquitectura de hilos de Suricata distribuye automáticamente los flujos de red entrantes entre todos los núcleos de CPU del servidor físico mediante afinidad de procesamiento (\textit{CPU flow pinning}). Al combinar esta característica con el motor de búsqueda vectorial \textbf{Intel Hyperscan}, Suricata procesa decenas de miles de reglas concurrentemente sin degradar el rendimiento ni introducir cuellos de botella en transferencias masivas de archivos por SMB ni en el tráfico web HTTPS.
+  \item \textbf{Integración Directa y Transparente con Netfilter/NFQUEUE:} Suricata interactúa de manera directa con las colas de paquetes en espacio de kernel (\texttt{NFQUEUE}) provistas por \texttt{nftables}, permitiendo alternar de forma dinámica entre un modo IDS puramente observador y un modo IPS de prevención activa. La inclusión de la directiva \texttt{bypass} en la regla del cortafuegos garantiza resiliencia operativa (*Fail-Open*): si el proceso de Suricata se detiene o reinicia, el kernel permite el paso inmediato del tráfico legítimo, previniendo denegaciones de servicio autoinfligidas.
+  \item \textbf{Telemetría Estructurada en EVE JSON:} La salida estándar en formato JSON (\texttt{eve.json}) genera registros detallados con metadatos de flujo, identidades de usuario, huellas TLS y veredictos de descarte (\texttt{drop}), lo que posibilita una integración directa con el servidor de monitoreo Zabbix (\texttt{192.168.0.3}) y futuras plataformas SIEM corporativas.
 \end{enumerate}
 
 % ----------------------------------------------------------------------------
@@ -122,57 +124,141 @@ La integración de los sensores en los puntos antes descritos se ejecuta mediant
 
 \subsubsection{Diagrama Lógico de la Arquitectura de Seguridad}
 
-La Figura~\ref{fig:arquitectura-ids-ips} ilustra la arquitectura de seguridad diseñada e implementada para la organización bajo la subred \texttt{192.168.0.0/24}, destacando el router de borde, los segmentos de clientes y la estructura interna de intercepción del servidor central \texttt{dc1}.
+La Figura~\ref{fig:arquitectura-ids-ips} ilustra la arquitectura de seguridad integral diseñada para la organización bajo la subred corporativa \texttt{192.168.0.0/24}. El diagrama detalla la correlación entre las tres zonas de monitoreo (Perimetral, Núcleo y Host), destacando el flujo de intercepción física y lógica que opera en el servidor central \texttt{dc1}.
 
+\begin{center}
+\begin{minipage}{\linewidth}
 \figuraAPA{fig:arquitectura-ids-ips}{Diagrama Lógico de Arquitectura de Red y Flujo de Inspección IDS/IPS}{%
+\setstretch{1.0}%
 \begin{tikzpicture}[
-    scale=0.92, transform shape,
-    font=\small,
-    bloque/.style={draw, rounded corners=3pt, fill=blue!6, minimum width=2.8cm, minimum height=1.0cm, align=center, thick},
-    enrutador/.style={draw, shape=rectangle, rounded corners=6pt, fill=orange!12, minimum width=3.4cm, minimum height=1.2cm, align=center, thick},
-    servidor/.style={draw, rounded corners=4pt, fill=green!8, minimum width=8.5cm, minimum height=5.8cm, align=center, dashed, thick},
-    componente/.style={draw, rounded corners=2pt, fill=white, minimum width=2.4cm, minimum height=0.8cm, align=center},
-    decision/.style={draw, shape=diamond, aspect=2, fill=yellow!15, align=center, inner sep=2pt, thick},
-    linea/.style={-latex, thick},
-    lineared/.style={-latex, thick, red!80!black},
-    lineagreen/.style={-latex, thick, green!60!black}
+    scale=0.85, transform shape,
+    font=\linespread{0.95}\selectfont\small,
+    every node/.append style={font=\linespread{0.95}\selectfont\small},
+    boxwan/.style={draw=gray!70, fill=gray!12, rounded corners=4pt, minimum width=5.6cm, minimum height=0.85cm, align=center, thick},
+    boxrouter/.style={draw=orange!80!black, fill=orange!12, rounded corners=5pt, minimum width=7.4cm, minimum height=1.15cm, align=center, thick},
+    boxswitch/.style={draw=blue!80!black, fill=blue!10, rounded corners=4pt, minimum width=5.4cm, minimum height=1.05cm, align=center, thick},
+    boxclient/.style={draw=blue!60!black, fill=blue!5, rounded corners=4pt, minimum width=5.4cm, minimum height=1.15cm, align=center, thick},
+    boxzabbix/.style={draw=purple!70!black, fill=purple!8, rounded corners=4pt, minimum width=5.4cm, minimum height=1.15cm, align=center, thick},
+    boxnic/.style={draw=blue!70!black, fill=blue!10, rounded corners=3pt, minimum width=5.8cm, minimum height=0.8cm, align=center, thick},
+    boxnft/.style={draw=orange!80!black, fill=orange!12, rounded corners=3pt, minimum width=6.6cm, minimum height=0.95cm, align=center, thick},
+    boxsuri/.style={draw=teal!80!black, fill=teal!10, rounded corners=4pt, minimum width=7.2cm, minimum height=1.2cm, align=center, thick},
+    boxaccept/.style={draw=green!60!black, fill=green!15, rounded corners=3pt, minimum width=3.4cm, minimum height=0.75cm, align=center, thick},
+    boxdrop/.style={draw=red!70!black, fill=red!15, rounded corners=3pt, minimum width=3.4cm, minimum height=0.75cm, align=center, thick},
+    boxsvcs/.style={draw=green!50!black, fill=green!6, rounded corners=3pt, minimum width=3.6cm, align=center, thick, inner sep=4pt},
+    boxlogs/.style={draw=red!60!black, fill=red!6, rounded corners=3pt, minimum width=3.6cm, align=center, thick, inner sep=4pt},
+    linea/.style={-latex, thick, draw=gray!70!black},
+    lineablue/.style={-latex, thick, draw=blue!70!black},
+    lineagreen/.style={-latex, thick, draw=green!60!black},
+    lineared/.style={-latex, thick, draw=red!70!black}
 ]
 
-  % Nodos de Red Externa y Borde
-  \node[bloque, fill=gray!15] (wan) at (0, 7.2) {Internet / WAN\\(Red Externa no Confiable)};
-  \node[enrutador] (router) at (0, 5.4) {Router de Borde\\TP-Link TL-WR850N\\(IP: \texttt{192.168.0.1})};
-  \draw[linea] (wan) -- node[right, font=\scriptsize]{Tráfico Entrante} (router);
+  % NIVEL SUPERIOR: WAN e Internet
+  \node[boxwan] (wan) at (8.0, 11.6) {\textbf{Internet / Red Externa WAN}\\{\scriptsize Enlace ISP --- Tráfico Externo no Confiable}};
+  \node[boxrouter] (router) at (8.0, 9.8) {\textbf{Router de Borde TP-Link TL-WR850N}\\{\scriptsize Gateway: \texttt{192.168.0.1} --- NAT / Firewall de Borde}\\{\scriptsize\textbf{\color{orange!90!black}[Posición 1: Sensor IPS/IDS Perimetral]}}};
 
-  % Nodos de la LAN
-  \node[bloque, fill=blue!10] (clients) at (-4.2, 3.8) {Clientes y Admins\\(\texttt{192.168.0.50--.199})\\LAN / WiFi 802.1X};
-  \node[bloque, fill=purple!10] (zabbix) at (-4.2, 1.8) {Servidor Monitoreo\\Zabbix Dedicado\\(\texttt{192.168.0.3})};
+  \draw[linea] (wan) -- node[right, font=\scriptsize]{Tráfico WAN} (router);
 
-  \draw[linea] (router) -| (clients);
-  \draw[linea] (router) -| (zabbix);
+  % COLUMNA IZQUIERDA: Distribución LAN y Clientes (192.168.0.0/24)
+  \draw[draw=blue!50!black, fill=blue!2, rounded corners=6pt, dashed, thick] (0.5, -1.0) rectangle (6.7, 8.1);
+  \node[draw=blue!50!black, fill=blue!15, rounded corners=2pt, font=\scriptsize\bfseries, text=blue!90!black, anchor=north west] at (0.7, 7.95) {VLAN / Red LAN};
 
-  % Contenedor Servidor Central dc1
-  \node[servidor] (dc1) at (3.2, 1.8) {};
-  \node[font=\bfseries\normalsize, anchor=north west] at (-0.8, 4.5) {Servidor Central dc1 (\texttt{192.168.0.2})};
+  \node[boxswitch] (sw) at (3.6, 6.6) {\textbf{Conmutación LAN / Switch}\\{\scriptsize Distribución de Tráfico Local}\\{\scriptsize\textbf{\color{blue!80!black}[Posición 2: Sensor IDS SPAN / Núcleo]}}};
 
-  % Componentes internos de dc1
-  \node[componente, fill=blue!12] (nic) at (3.2, 3.8) {Interfaz de Red Física\\(\texttt{eno1} / LAN Host)};
-  \node[componente, fill=orange!15] (nft) at (3.2, 2.6) {Firewall \texttt{nftables}\\Cálculo Hook \texttt{input}};
-  \node[decision] (suri) at (3.2, 1.0) {Suricata 7\\Motor IDS / IPS};
-  \node[componente, fill=green!15] (svcs) at (1.0, -0.4) {Servicios Corporativos\\(AD, DNS, SMB, Nginx)};
-  \node[componente, fill=red!15] (drop) at (5.4, -0.4) {Descarte en Kernel\\(Paquete Eliminado)};
-  \node[componente, fill=gray!20] (logs) at (3.2, -0.4) {Bitácoras de Seguridad\\\texttt{fast.log} / \texttt{eve.json}};
+  \node[boxclient] (clients) at (3.6, 4.5) {\textbf{Clientes y Equipos Admin}\\{\scriptsize IPs: \texttt{192.168.0.50 -- .199}}\\{\scriptsize Estaciones de Oficina y WiFi 802.1X}};
+
+  \node[boxzabbix] (zabbix) at (3.6, 2.3) {\textbf{Servidor Zabbix Dedicado}\\{\scriptsize IP: \texttt{192.168.0.3} (Debian 13 Físico)}\\{\scriptsize Monitoreo SNMP / Agentes / Syslog}};
+
+  \node[font=\scriptsize\itshape, text=blue!80!black, align=center] at (3.6, 0.5) {Puerto espejo (SPAN) en switch duplica\\tráfico interno hacia sensor IDS};
+
+  % Conexión Router -> Switch LAN
+  \draw[lineablue] ([xshift=-2.0cm]router.south) -- ++(0,-0.6) -| node[above, pos=0.25, font=\scriptsize]{Enlace LAN} (sw.north);
+  \draw[lineablue] (sw) -- (clients);
+  \draw[lineablue] (clients) -- (zabbix);
+
+  % COLUMNA DERECHA: Servidor Central dc1 (IPS en Host)
+  \draw[draw=teal!60!black, fill=teal!2, rounded corners=6pt, dashed, thick] (7.3, -1.0) rectangle (16.3, 8.1);
+  \node[draw=teal!60!black, fill=teal!15, rounded corners=2pt, font=\scriptsize\bfseries, text=teal!90!black, anchor=north west] at (7.5, 7.95) {Servidor Central dc1};
+
+  \node[boxnic] (nic) at (11.8, 6.7) {\textbf{Interfaz de Red Física: \texttt{eno1}}\\{\scriptsize Recepción de tramas Ethernet a 1 Gbps}};
+
+  \node[boxnft] (nft) at (11.8, 5.4) {\textbf{Cortafuegos del Kernel (\texttt{nftables})}\\{\scriptsize Hook \texttt{input} $\rightarrow$ Regla: \texttt{queue num 0 bypass}}};
+
+  \node[boxsuri] (suri) at (11.8, 3.8) {\textbf{Motor Suricata 7 (IPS Multihilo en Host)}\\{\scriptsize Inspección profunda de firmas (\texttt{homelab.rules})}\\{\scriptsize\textbf{\color{teal!80!black}[Posición 3: Sensor H-NIPS en Línea]}}};
+
+  % Ramificación Veredictos
+  \node[boxaccept] (accept) at (9.5, 2.3) {\textbf{\color{green!50!black}Veredicto ACCEPT}\\{\scriptsize Tráfico Verificado}};
+  \node[boxdrop] (drop) at (14.1, 2.3) {\textbf{\color{red!60!black}Veredicto DROP}\\{\scriptsize Paquete Malicioso}};
+
+  \node[boxsvcs] (svcs) at (9.5, 0.3) {\textbf{Servicios Corporativos}\\{\scriptsize $\bullet$ Samba 4 AD DC (88, 389, 445)}\\{\scriptsize $\bullet$ Servidor Web Nginx (80, 443)}\\{\scriptsize $\bullet$ Acceso SSH Seguro (22)}\\{\scriptsize $\bullet$ Servidor DNS AD (53)}};
+
+  \node[boxlogs] (logs) at (14.1, 0.3) {\textbf{Mitigación y Auditoría}\\{\scriptsize $\bullet$ Descarte en Kernel (\texttt{NF\_DROP})}\\{\scriptsize $\bullet$ Alerta inmediata en \texttt{fast.log}}\\{\scriptsize $\bullet$ Telemetría en \texttt{eve.json}}\\{\scriptsize $\bullet$ Evento correlacionado en Zabbix}};
+
+  % Conexión Router -> dc1
+  \draw[lineablue] ([xshift=2.0cm]router.south) -- ++(0,-0.6) -| node[above, pos=0.25, font=\scriptsize]{Enlace Físico dc1} (nic.north);
 
   % Conexiones dentro de dc1
-  \draw[linea] (router) -| node[above, font=\scriptsize, near start]{Enlace Ethernet} (nic);
   \draw[linea] (nic) -- (nft);
-  \draw[linea] (nft) -- node[right, font=\scriptsize]{\texttt{queue num 0 bypass}} (suri);
+  \draw[linea] (nft) -- node[right, font=\scriptsize\ttfamily]{NFQUEUE 0} (suri);
 
-  \draw[lineagreen] (suri) -| node[above, font=\scriptsize, near start]{Veredicto ACCEPT} (svcs);
-  \draw[lineared] (suri) -| node[above, font=\scriptsize, near start]{Veredicto DROP} (drop);
-  \draw[linea] (suri) -- node[right, font=\scriptsize]{Alerta} (logs);
+  \draw[lineagreen] (suri.south -| accept.north) -- (accept.north);
+  \draw[lineagreen] (accept.south) -- (svcs.north);
+
+  \draw[lineared] (suri.south -| drop.north) -- (drop.north);
+  \draw[lineared] (drop.south) -- (logs.north);
 
 \end{tikzpicture}%
 }{Elaboración propia.}
+\end{minipage}
+\end{center}
+
+\subsubsection{Mecanismo de Protección Integral del Servidor dc1}
+
+Para comprender con exactitud de qué manera las herramientas seleccionadas blindan al servidor centralizado de la organización, es necesario examinar el flujo de defensa a nivel de bajo nivel en el kernel y su correspondencia puerto a puerto con los servicios corporativos alojados en \texttt{dc1}.
+
+\paragraph{Flujo de Intercepción y Decisión en Núcleo (Kernel-level Pipeline).}
+El servidor \texttt{dc1} (\texttt{192.168.0.2}) implementa una defensa activa que opera a nivel de paquete antes de que los datos alcancen la memoria de las aplicaciones:
+
+\begin{enumerate}
+  \item \textbf{Ingreso por Interfaz Física (\texttt{eno1}):} Las tramas Ethernet provenientes de los clientes o del enrutador son recibidas por el controlador de red del kernel Linux.
+  \item \textbf{Evaluación en la Cadena \texttt{input} de \texttt{nftables}:} Antes de que el paquete sea entregado a la pila de transporte TCP/UDP local, el hook \texttt{input} del cortafuegos evalúa la regla de redirección:
+\begin{lstlisting}[language=bash]
+meta l4proto tcp ct state new,established counter queue num 0 bypass
+\end{lstlisting}
+  \item \textbf{Transferencia a Espacio de Usuario vía \texttt{NFQUEUE}:} El paquete es copiado hacia la cola número 0 administrada por el subsistema Netfilter en memoria compartida del kernel.
+  \item \textbf{Inspección Profunda Multihilo en Suricata 7:} Un hilo de Suricata extrae el paquete de la cola, ejecuta el reensamblaje del flujo TCP, normaliza el protocolo de capa de aplicación y evalúa concurrentemente las firmas locales (\texttt{homelab.rules}) aceleradas por Intel Hyperscan.
+  \item \textbf{Emisión del Veredicto en Microsegundos:}
+    \begin{itemize}
+      \item \textbf{Veredicto ACCEPT (Tráfico Legítimo):} Suricata emite la instrucción \texttt{NF\_ACCEPT} al kernel. El paquete continúa su flujo normal y es entregado al zócalo (*socket*) del servicio de destino (Samba AD, Nginx, BIND9, SSH).
+      \item \textbf{Veredicto DROP (Tráfico Malicioso):} Si el payload coincide con una firma de descarte, Suricata emite \texttt{NF\_DROP}. El kernel destruye el búfer de memoria del paquete de inmediato. La aplicación destinataria jamás recibe la petición, el atacante sufre una desconexión abrupta (*timeout* o *reset*) y la vulnerabilidad potencial queda completamente inaccesible.
+    \end{itemize}
+  \item \textbf{Garantía de Continuidad Operativa (*Fail-Open*):} Gracias al parámetro \texttt{bypass}, si el motor de Suricata se sobrecarga, se detiene o se reinicia, el kernel permite el paso directo del tráfico para evitar una caída no planificada de la red corporativa.
+\end{enumerate}
+
+\paragraph{Matriz de Protección por Servicio y Puerto Corporativo.}
+La Tabla~\ref{tab:matriz-proteccion-dc1} detalla la correspondencia entre los servicios residentes en \texttt{dc1}, los puertos expuestos, las amenazas mitigadas y el mecanismo técnico que ejerce Suricata.
+
+\begin{table}[H]
+\centering
+\caption{Matriz de Protección Defensiva por Servicio y Puerto en dc1}
+\label{tab:matriz-proteccion-dc1}
+\contenidoConFuente{%
+  \begin{tablaAPA}
+  \begin{tabular}{L{3.0cm}L{2.0cm}L{4.8cm}L{4.6cm}}
+  \toprule
+  \textbf{Servicio en dc1} & \textbf{Puertos} & \textbf{Amenazas Mitigadas} & \textbf{Mecanismo de Suricata} \\
+  \midrule
+  \textbf{Active Directory DC (Kerberos)} & 88 (TCP/UDP) & Fuerza bruta contra contraseñas, enumeración de usuarios, ataques AS-REP Roasting. & Regla de umbral (\texttt{threshold}) con firma \texttt{sid:9000030} y descarte preventivo. \\
+  \textbf{Active Directory DC (LDAP/LDAPS)} & 389, 636 (TCP) & Reconocimiento masivo de objetos del dominio, inyecciones de filtros LDAP, volcado de atributos. & Decodificador nativo de capa 7 para transacciones LDAP y alertas estructuradas. \\
+  \textbf{Samba File Server (SMB/CIFS)} & 445 (TCP) & Explotación de vulnerabilidades remotas (tipo EternalBlue MS17-010), ransomware en recursos compartidos. & Decodificador nativo SMB2/SMB3, inspección de comandos y extracción de hashes de archivos. \\
+  \textbf{Servidor Web Nginx} & 80, 443 (TCP) & Inyecciones SQL (SQLi), ejecución remota de comandos (RCE, Log4Shell), traversales de directorio. & Regla IPS con acción \texttt{drop} en línea (\texttt{sid:9000002}) que bloquea el payload antes del daemon web. \\
+  \textbf{Servicio de Nombres (DNS AD)} & 53 (UDP/TCP) & Consultas malformadas, envenenamiento de caché DNS, exfiltración por túneles encubiertos DNS. & Parser nativo de protocolo DNS con validación de anomalías de RFC en tiempo real. \\
+  \textbf{Acceso Remoto Seguro (SSH)} & 22 (TCP) & Escaneo sigiloso de puertos, ataques automatizados de diccionario y fuerza bruta SSH. & Correlación de banderas TCP y rate-limiting en conjunto con la telemetría de \texttt{eve.json}. \\
+  \textbf{Capa de Red Global} & Todos & Cartografiado sigiloso mediante escaneos TCP NULL y TCP XMAS. & Detección de combinaciones ilícitas de banderas TCP (\texttt{flags:0} y \texttt{flags:FPU}). \\
+  \bottomrule
+  \end{tabular}
+  \end{tablaAPA}%
+}{Elaboración propia.}
+\end{table}
 
 % ----------------------------------------------------------------------------
 \subsection{Implementación y Validación Práctica en el Laboratorio}

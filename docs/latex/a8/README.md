@@ -1,6 +1,6 @@
 # Actividad 8: Herramientas de Monitoreo para la Defensa (IDS / IPS)
 
-Informe técnico académico para la asignatura **Taller de Sistemas Operativos II** (Universidad Privada Domingo Savio).
+Informe técnico académico para la asignatura **Seguridad Informática** (Universidad Privada Domingo Savio).
 
 ---
 

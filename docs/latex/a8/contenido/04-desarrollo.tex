@@ -289,6 +289,82 @@ alert tcp any any -> $HOME_NET 88 (msg:"[HOMELAB-IDS-ALERT] Sondeo continuo o so
 \end{lstlisting}
 \end{itemize}
 
+\subsubsection{Guía Operativa y Comandos de Administración de Suricata}
+
+Para la correcta administración, supervisión y puesta en marcha de Suricata en un entorno de producción sobre GNU/Linux Debian, se estructuró un conjunto estandarizado de comandos y utilitarios operativos en el servidor \texttt{dc1}:
+
+\paragraph{1. Gestión del Demonio del Sistema mediante Systemd.}
+Al haber sido instalado de forma nativa en el sistema operativo host, el ciclo de vida del motor de seguridad se controla mediante el gestor del sistema \texttt{systemd}:
+\begin{lstlisting}[language=bash]
+# Consultar el estado operativo y metricas de hilos de Suricata:
+sudo systemctl status suricata
+
+# Iniciar, detener o reiniciar el motor de deteccion:
+sudo systemctl start suricata
+sudo systemctl stop suricata
+sudo systemctl restart suricata
+
+# Recargar firmas en caliente sin interrumpir la captura de trafico:
+sudo systemctl reload suricata
+\end{lstlisting}
+
+\paragraph{2. Validación Preventiva de Configuración y Sintaxis (-T).}
+Antes de aplicar cambios a las firmas de seguridad o a los parámetros de red en \texttt{suricata.yaml}, es una buena práctica de ingeniería ejecutar el modo de prueba (\textit{Test Mode}):
+\begin{lstlisting}[language=bash]
+# Validar la sintaxis de configuracion y el parseo de todas las reglas:
+sudo suricata -T -c /etc/suricata/suricata.yaml -v
+\end{lstlisting}
+El parámetro \texttt{-T} inicializa los motores de decodificación y compila las firmas con Hyperscan en memoria. Si no se detectan inconsistencias, finaliza con código de salida 0 (\textit{Configuration provided was successfully tested}).
+
+\paragraph{3. Alternancia Dinámica de Modos Operativos (IDS vs IPS).}
+Para gestionar la transición entre el modo pasivo (sólo alertas) y el modo preventivo (descarte en línea), se dispone del utilitario interactivo \texttt{server/suricata/ips-toggle.sh}:
+\begin{lstlisting}[language=bash]
+# Activar modo IPS (inserta regla NFQUEUE 0 bypass en la cadena input de nftables):
+sudo bash server/suricata/ips-toggle.sh --ips
+
+# Retornar a modo IDS pasivo (remueve la regla de desvio en nftables):
+sudo bash server/suricata/ips-toggle.sh --ids
+
+# Comprobar el modo operativo activo y las alertas mas recientes:
+bash server/suricata/ips-toggle.sh --status
+\end{lstlisting}
+
+Asimismo, la verificación directa de la cola en el subsistema del kernel se realiza mediante:
+\begin{lstlisting}[language=bash]
+# Inspeccionar las reglas de cola activas en el cortafuegos del kernel:
+sudo nft list table inet filter | grep queue
+\end{lstlisting}
+
+\paragraph{4. Supervisión y Auditoría de Bitácoras en Tiempo Real.}
+Suricata genera registros complementarios en el directorio \texttt{/var/log/suricata/}:
+\begin{lstlisting}[language=bash]
+# Monitoreo en vivo de alertas tradicionales y bloqueos (fast.log):
+sudo tail -f /var/log/suricata/fast.log
+
+# Monitoreo estructurado de eventos JSON filtrando alertas y descartes (eve.json):
+sudo tail -f /var/log/suricata/eve.json | jq 'select(.event_type=="alert" or .event_type=="drop")'
+
+# Estadisticas operativas de rendimiento y contadores de paquetes:
+sudo tail -n 30 /var/log/suricata/stats.log
+\end{lstlisting}
+
+\paragraph{5. Actualización Continua de Firmas de Seguridad.}
+La sincronización periódica de firmas de amenazas comunitarias se ejecuta mediante:
+\begin{lstlisting}[language=bash]
+# Descargar el ultimo conjunto de firmas de Emerging Threats Open:
+sudo suricata-update
+
+# Recargar el motor para aplicar las nuevas reglas descargadas:
+sudo suricatasc -c reload-rules
+\end{lstlisting}
+
+\paragraph{6. Ejecución de la Batería de Pruebas de Validación.}
+Para verificar el funcionamiento integral de la solución en laboratorio, se ejecuta la suite automatizada:
+\begin{lstlisting}[language=bash]
+# Ejecutar pruebas E2E de envio de sondas y payloads maliciosos:
+sudo bash server/suricata/test-ids-ips.sh
+\end{lstlisting}
+
 \subsubsection{Pruebas Experimentales de Laboratorio}
 
 La suite de validación automatizada (\texttt{server/suricata/test-ids-ips.sh}) permitió demostrar experimentalmente la dualidad funcional entre el modo IDS y el modo IPS:

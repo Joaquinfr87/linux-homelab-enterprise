@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A8. Herramientas de Monitoreo para la Defensa — Seguridad Informática</title>
+  <style>
+    /* ==========================================================================
+       VARIABLES Y TEMA GENERAL (Dark Cyber / Enterprise Theme)
+       ========================================================================== */
+    :root {
+      --bg-main: #0B0F19;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --bg-card-hover: rgba(31, 41, 55, 0.95);
+      --bg-card-border: rgba(55, 65, 81, 0.6);
+      --border-accent: #0ea5e9;
+      --primary: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.25);
+      --accent-green: #10b981;
+      --accent-green-glow: rgba(16, 185, 129, 0.2);
+      --accent-red: #f43f5e;
+      --accent-red-glow: rgba(244, 63, 94, 0.2);
+      --accent-amber: #f59e0b;
+      --accent-purple: #a855f7;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      --slide-transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Fondo abstracto tecnológico */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 15% 20%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.04) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ==========================================================================
+       BARRA SUPERIOR Y PROGRESO
+       ========================================================================== */
+    header.deck-header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 28px;
+      background: rgba(11, 15, 25, 0.85);
+      border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+      backdrop-filter: blur(12px);
+    }
+
+    .header-branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-institution {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      box-shadow: 0 0 12px rgba(2, 132, 199, 0.4);
+    }
+
+    .header-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+    }
+
+    .header-title strong {
+      color: var(--text-main);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-ctrl {
+      background: rgba(31, 41, 55, 0.6);
+      border: 1px solid rgba(75, 85, 99, 0.6);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-ctrl:hover {
+      background: rgba(55, 65, 81, 0.9);
+      color: var(--text-main);
+      border-color: var(--primary);
+    }
+
+    .slide-counter {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--primary);
+      font-weight: 600;
+      padding: 4px 8px;
+      background: rgba(14, 165, 233, 0.1);
+      border-radius: 4px;
+      border: 1px solid rgba(14, 165, 233, 0.25);
+    }
+
+    .progress-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: rgba(31, 41, 55, 0.8);
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #10b981);
+      width: 0%;
+      transition: width var(--slide-transition);
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+
+    /* ==========================================================================
+       CONTENEDOR DE DIAPOSITIVAS
+       ========================================================================== */
+    main.deck-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 36px 56px 40px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(40px) scale(0.98);
+      transition: opacity var(--slide-transition), transform var(--slide-transition), visibility var(--slide-transition);
+      overflow-y: auto;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0) scale(1);
+      z-index: 2;
+    }
+
+    .slide.prev {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(-40px) scale(0.98);
+    }
+
+    /* ==========================================================================
+       CABECERAS DE DIAPOSITIVA
+       ========================================================================== */
+    .slide-header {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(55, 65, 81, 0.4);
+      padding-bottom: 14px;
+    }
+
+    .slide-category {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--primary);
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .slide-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    .slide-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .slide-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ==========================================================================
+       SISTEMA DE GRID Y CONTENIDO
+       ========================================================================== */
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      height: 100%;
+    }
+
+    .grid-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      height: 100%;
+    }
+
+    .grid-4col {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    /* Tarjetas y Paneles */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(55, 65, 81, 0.4);
+    }
+
+    .card-icon {
+      font-size: 1.25rem;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--primary);
+    }
+
+    .card-icon.green {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+    }
+
+    .card-icon.red {
+      background: rgba(244, 63, 94, 0.15);
+      color: var(--accent-red);
+    }
+
+    .card-icon.amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-amber);
+    }
+
+    .card-icon.purple {
+      background: rgba(168, 85, 247, 0.15);
+      color: var(--accent-purple);
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .card-body {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-body strong {
+      color: var(--text-main);
+    }
+
+    /* Listas con viñetas elegantes */
+    ul.bullet-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    ul.bullet-list li {
+      position: relative;
+      padding-left: 22px;
+      line-height: 1.5;
+      font-size: 0.92rem;
+      color: var(--text-muted);
+    }
+
+    ul.bullet-list li::before {
+      content: '▹';
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    ul.bullet-list li strong {
+      color: var(--text-main);
+    }
+
+    ul.bullet-list.green li::before {
+      color: var(--accent-green);
+    }
+
+    ul.bullet-list.red li::before {
+      color: var(--accent-red);
+    }
+
+    /* ==========================================================================
+       TABLAS COMPARATIVAS
+       ========================================================================== */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--bg-card-border);
+      border-radius: 10px;
+      background: var(--bg-card);
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.86rem;
+    }
+
+    table.data-table th {
+      background: rgba(15, 23, 42, 0.95);
+      color: #fff;
+      font-weight: 700;
+      padding: 12px 16px;
+      border-bottom: 2px solid rgba(56, 189, 248, 0.4);
+      text-transform: uppercase;
+      font-size: 0.74rem;
+      letter-spacing: 0.5px;
+    }
+
+    table.data-table td {
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    table.data-table tr:hover td {
+      background: rgba(30, 41, 59, 0.4);
+      color: var(--text-main);
+    }
+
+    table.data-table td strong {
+      color: #fff;
+    }
+
+    /* Badges de estado */
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+    }
+
+    .pill-green {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .pill-red {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .pill-blue {
+      background: rgba(14, 165, 233, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(14, 165, 233, 0.3);
+    }
+
+    .pill-amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* ==========================================================================
+       BLOQUES DE CÓDIGO Y TERMINALES
+       ========================================================================== */
+    .code-block {
+      background: #060911;
+      border: 1px solid rgba(55, 65, 81, 0.7);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+      overflow-x: auto;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+
+    .code-comment { color: #64748b; font-style: italic; }
+    .code-cmd { color: #38bdf8; font-weight: 600; }
+    .code-param { color: #f59e0b; }
+    .code-path { color: #34d399; }
+    .code-alert { color: #fb7185; font-weight: 700; }
+
+    /* ==========================================================================
+       DIAGRAMAS Y ESQUEMAS VISUALES (HTML/SVG)
+       ========================================================================== */
+    .diag-container {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      height: 100%;
+      justify-content: center;
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .flow-node {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 160px;
+    }
+
+    .flow-node small {
+      font-size: 0.7rem;
+      font-weight: 400;
+      opacity: 0.85;
+    }
+
+    .node-wan { background: rgba(100, 116, 139, 0.15); border-color: #64748b; color: #cbd5e1; }
+    .node-router { background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #fbbf24; }
+    .node-switch { background: rgba(14, 165, 233, 0.15); border-color: #0ea5e9; color: #7dd3fc; }
+    .node-suri { background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #6ee7b7; box-shadow: 0 0 15px rgba(16, 185, 129, 0.15); }
+    .node-drop { background: rgba(244, 63, 94, 0.2); border-color: #f43f5e; color: #fda4af; }
+    .node-accept { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #bae6fd; }
+
+    .flow-arrow {
+      color: #94a3b8;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    /* ==========================================================================
+       PORTADA (Slide 1)
+       ========================================================================== */
+    .hero-slide {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100%;
+      padding: 40px 20px;
+    }
+
+    .hero-pretitle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .hero-title {
+      font-size: 2.85rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #ffffff 40%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      max-width: 900px;
+    }
+
+    .hero-subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 760px;
+      margin-bottom: 34px;
+      line-height: 1.5;
+    }
+
+    .hero-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      width: 100%;
+      max-width: 860px;
+      background: rgba(17, 24, 39, 0.7);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 14px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-align: left;
+    }
+
+    .meta-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .meta-value {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .meta-sub {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
+    /* ==========================================================================
+       BARRA INFERIOR DE NAVEGACIÓN
+       ========================================================================== */
+    footer.deck-footer {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 28px;
+      background: rgba(11, 15, 25, 0.9);
+      border-top: 1px solid rgba(55, 65, 81, 0.5);
+    }
+
+    .footer-hints {
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .footer-hints kbd {
+      background: rgba(31, 41, 55, 0.9);
+      border: 1px solid rgba(75, 85, 99, 0.6);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-nav {
+      background: rgba(31, 41, 55, 0.8);
+      border: 1px solid rgba(75, 85, 99, 0.6);
+      color: var(--text-main);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .btn-nav:hover:not(:disabled) {
+      background: var(--primary);
+      color: #0b0f19;
+      border-color: var(--primary);
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* ==========================================================================
+       VISTA RESUMEN / OVERVIEW (Tecla 'O' o 'Esc')
+       ========================================================================== */
+    .overview-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(11, 15, 25, 0.96);
+      backdrop-filter: blur(16px);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      padding: 40px;
+      overflow-y: auto;
+    }
+
+    .overview-modal.active {
+      display: flex;
+    }
+
+    .overview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+    }
+
+    .overview-thumb {
+      background: rgba(17, 24, 39, 0.8);
+      border: 2px solid rgba(55, 65, 81, 0.6);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      height: 140px;
+    }
+
+    .overview-thumb:hover {
+      border-color: var(--primary);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px -4px var(--primary-glow);
+    }
+
+    .overview-thumb.active {
+      border-color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .thumb-num {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .thumb-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    .thumb-desc {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+    }
+
+    /* ==========================================================================
+       MODO IMPRESIÓN / PDF (Ctrl + P)
+       ========================================================================== */
+    @media print {
+      body {
+        overflow: visible !important;
+        height: auto !important;
+        background: #fff !important;
+        color: #000 !important;
+      }
+      body::before, header.deck-header, footer.deck-footer, .overview-modal {
+        display: none !important;
+      }
+      main.deck-container {
+        display: block !important;
+        overflow: visible !important;
+        height: auto !important;
+      }
+      .slide {
+        position: relative !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        page-break-after: always !important;
+        height: 100vh !important;
+        padding: 40px !important;
+        background: #fff !important;
+        color: #111 !important;
+      }
+      .card, .table-container, .code-block {
+        background: #f8fafc !important;
+        border-color: #cbd5e1 !important;
+        color: #1e293b !important;
+        box-shadow: none !important;
+      }
+      .card-title, .slide-title, table.data-table th, table.data-table td strong {
+        color: #0f172a !important;
+      }
+      .code-block {
+        background: #0f172a !important;
+        color: #f8fafc !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       BARRA SUPERIOR
+       ======================================================================== -->
+  <header class="deck-header">
+    <div class="header-branding">
+      <span class="badge-institution">UPDS · Ingeniería en Sistemas</span>
+      <div class="header-title">
+        <strong>A8: Herramientas de Monitoreo para la Defensa</strong>
+        <span> · Seguridad Informática</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <button class="btn-ctrl" id="btnOverview" title="Ver cuadrícula de diapositivas (Tecla O)">
+        <span>☷ Resumen</span>
+      </button>
+      <button class="btn-ctrl" id="btnFullscreen" title="Pantalla completa (Tecla F)">
+        <span>⛶ Completa</span>
+      </button>
+      <div class="slide-counter" id="slideCounter">01 / 15</div>
+    </div>
+
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       CONTENEDOR DE DIAPOSITIVAS
+       ======================================================================== -->
+  <main class="deck-container" id="deckContainer">
+
+    <!-- SLIDE 1: PORTADA -->
+    <section class="slide active" data-slide="1">
+      <div class="hero-slide">
+        <div class="hero-pretitle">
+          <span class="pill pill-blue">Actividad 8 · Informe Académico</span>
+          <span class="pill pill-green">SUDOERS.LAN · dc1 (192.168.0.2)</span>
+        </div>
+        <h1 class="hero-title">Herramientas de Monitoreo para la Defensa</h1>
+        <p class="hero-subtitle">
+          Análisis comparativo riguroso entre IDS e IPS, evaluación de Suricata frente a Snort 3, y propuesta de arquitectura defensiva en profundidad para la red corporativa.
+        </p>
+        <div class="hero-meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Institución & Carrera</span>
+            <span class="meta-value">Univ. Privada Domingo Savio</span>
+            <span class="meta-sub">Facultad de Ingeniería · Cochabamba</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Equipo de Trabajo</span>
+            <span class="meta-value">Grupo 1 Sudoers</span>
+            <span class="meta-sub">J. Felipez · N. Reguerin · D. Cruz</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Docente & Asignatura</span>
+            <span class="meta-value">Seguridad Informática</span>
+            <span class="meta-sub">Ing. Jose Abraham Mita Huanca</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: CONTEXTO Y PROBLEMÁTICA -->
+    <section class="slide" data-slide="2">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">01 · Fundamentos y Justificación</span>
+          <h2 class="slide-title">Problemática de Seguridad en Redes Modernas</h2>
+          <p class="slide-subtitle">La ilusión del perímetro estático: por qué los cortafuegos tradicionales ya no son suficientes</p>
+        </div>
+        <span class="slide-badge">RFC 4732 · NIST SP 800-94</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon red">⚠️</div>
+              <h3 class="card-title">Vectores de Ataque Críticos</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list red">
+                <li><strong>Reconocimiento Sigiloso:</strong> Escaneos TCP SYN, NULL y XMAS orientados a cartografiar puertos sin completar handshakes.</li>
+                <li><strong>Ataques a la Identidad (AD DC):</strong> Intentos masivos de fuerza bruta, enumeración de cuentas y técnicas de <em>Kerberoasting</em> contra Kerberos (puerto 88) y LDAP (389).</li>
+                <li><strong>Explotación Web de Capa 7:</strong> Inyecciones SQL (SQLi), ejecución remota de comandos (RCE) y <em>Path Traversal</em> en aplicaciones internas.</li>
+                <li><strong>Tráfico Este-Oeste Ciego:</strong> Movimientos laterales de malware entre PCs clientes sin inspección una vez vulnerado el borde.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">🛡️</div>
+              <h3 class="card-title">El Rol de la Defensa en Profundidad</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list green">
+                <li><strong>Inspección Profunda de Paquetes (DPI):</strong> Análisis del contenido y contexto de la carga útil (*payload*), no solo cabeceras IP/puerto.</li>
+                <li><strong>Detección Basada en Firmas y Anomalías:</strong> Contrastación en microsegundos contra reglas especializadas de amenazas conocidas.</li>
+                <li><strong>Telemetría Estructurada en Tiempo Real:</strong> Visibilidad total de sesiones TLS, consultas DNS, transferencias de archivos y descartes.</li>
+                <li><strong>Mitigación Activa Automatizada:</strong> Capacidad de neutralizar el exploit en la red antes de que alcance el socket de la aplicación.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: CONCEPTOS FUNDAMENTALES: IDS VS IPS -->
+    <section class="slide" data-slide="3">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">02 · Principios Operativos</span>
+          <h2 class="slide-title">Conceptos Rectores: IDS vs IPS</h2>
+          <p class="slide-subtitle">Diferencias estructurales entre detección pasiva fuera de banda y prevención activa en línea</p>
+        </div>
+        <span class="slide-badge">NIST SP 800-94</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">👁️</div>
+              <h3 class="card-title">IDS (Intrusion Detection System)</h3>
+            </div>
+            <div class="card-body">
+              <span class="pill pill-blue">Modo Pasivo · Out-of-Band</span>
+              <ul class="bullet-list">
+                <li><strong>Posicionamiento:</strong> Fuera de la ruta directa de tránsito. Recibe copias mediante <strong>puertos espejo (SPAN)</strong> o <strong>TAPs</strong> de red.</li>
+                <li><strong>Intervención:</strong> Solo lectura. <strong>No modifica, no frena ni destruye</strong> los paquetes evaluados.</li>
+                <li><strong>Impacto en Latencia:</strong> <strong>0 ms</strong> en el tráfico de usuario.</li>
+                <li><strong>Respuesta:</strong> Reactiva; alerta a registros (`fast.log`), correos o sistemas SIEM tras detectarse la firma.</li>
+                <li><strong>Riesgo:</strong> Cero riesgo de denegación autoinfligida por falsos positivos.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon red">🛑</div>
+              <h3 class="card-title">IPS (Intrusion Prevention System)</h3>
+            </div>
+            <div class="card-body">
+              <span class="pill pill-red">Modo Activo · In-line</span>
+              <ul class="bullet-list">
+                <li><strong>Posicionamiento:</strong> En línea directa. El tráfico <strong>debe atravesar obligatoriamente</strong> el motor de inspección.</li>
+                <li><strong>Intervención:</strong> Lectura y control activo. Descarta (`drop`), restablece (`reject`) o altera flujos maliciosos.</li>
+                <li><strong>Impacto en Latencia:</strong> Mínimo incremento debido al reensamblaje TCP y evaluación de firmas en kernel.</li>
+                <li><strong>Respuesta:</strong> Proactiva; el paquete malicioso es destruido antes de ingresar al zócalo del servicio.</li>
+                <li><strong>Riesgo:</strong> Un falso positivo bloquea operaciones legítimas; exige alta precisión y calibración.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: DILEMAS OPERATIVOS Y RESILIENCIA -->
+    <section class="slide" data-slide="4">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">02 · Principios Operativos</span>
+          <h2 class="slide-title">Dilemas Operativos y Tolerancia a Fallos</h2>
+          <p class="slide-subtitle">El compromiso de ingeniería entre falsos positivos, latencia y arquitectura Fail-Open</p>
+        </div>
+        <span class="slide-badge">Netfilter NFQUEUE</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-3col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon amber">⚖️</div>
+              <h3 class="card-title">Falsos Positivos vs Negativos</h3>
+            </div>
+            <div class="card-body">
+              <p><strong>En IPS:</strong> Un falso positivo deriva en una <em>denegación de servicio autoinfligida</em> que interrumpe la producción corporativa.</p>
+              <p><strong>En IDS:</strong> Un falso negativo permite la penetración exitosa del atacante sin ninguna barrera de mitigación física.</p>
+              <p class="pill pill-amber">Solución: Fase de calibración (Tuning) previa de 2 a 4 semanas.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">⚡</div>
+              <h3 class="card-title">Mecanismo Fail-Open en Linux</h3>
+            </div>
+            <div class="card-body">
+              <p>En Linux, el IPS interactúa con el cortafuegos mediante colas de espacio de kernel <strong>NFQUEUE</strong>.</p>
+              <div class="code-block" style="font-size: 0.72rem;">
+                queue num 0 <span class="code-alert">bypass</span>
+              </div>
+              <p>La cláusula <strong>bypass</strong> garantiza que si el proceso de Suricata se detiene o satura, el kernel permite el paso inmediato del tráfico legítimo.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">⏱️</div>
+              <h3 class="card-title">Presupuesto de Latencia</h3>
+            </div>
+            <div class="card-body">
+              <p>El motor IPS debe ejecutar:</p>
+              <ul class="bullet-list">
+                <li>Normalización de protocolos de capa 7.</li>
+                <li>Reensamblaje de fragmentos y flujos TCP.</li>
+                <li>Matching concurrente de más de 30.000 reglas.</li>
+              </ul>
+              <p>Se resuelve mediante aceleración vectorial por hardware con <strong>Intel Hyperscan</strong>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: ANÁLISIS TÉCNICO: SURICATA 7 -->
+    <section class="slide" data-slide="5">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">03 · Análisis de Herramientas Open Source</span>
+          <h2 class="slide-title">Plataforma 1: Suricata 7 (OISF)</h2>
+          <p class="slide-subtitle">Motor de seguridad de red de nueva generación: arquitectura multihilo, Hyperscan y EVE JSON</p>
+        </div>
+        <span class="slide-badge">Suricata v7.0.x · Nativo</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">🚀</div>
+              <h3 class="card-title">Características Arquitectónicas Clave</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list green">
+                <li><strong>Multihilo Nativo Simétrico (*True Multi-Threading*):</strong> Asigna hilos específicos por núcleo con afinidad de CPU (*flow pinning*) para captura, decodificación y volcado.</li>
+                <li><strong>Aceleración con Intel Hyperscan:</strong> Biblioteca de expresiones regulares compilada con instrucciones AVX2/AVX-512; escaneo masivo sin degradación.</li>
+                <li><strong>Adquisición Dual Flexible:</strong> Modo pasivo vía zócalos de alto rendimiento `AF_PACKET` y modo prevención en línea acoplado a `NFQUEUE` con `nftables`.</li>
+                <li><strong>Telemetría Unificada EVE JSON:</strong> Salida estructurada de eventos (`eve.json`) consumible directamente por Zabbix, Elasticsearch o Grafana Loki.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">🏢</div>
+              <h3 class="card-title">Inspección de Protocolos de Directorio Activo</h3>
+            </div>
+            <div class="card-body">
+              <p>Suricata destaca por incluir parsers profundos nativos de capa de aplicación para el ecosistema corporativo:</p>
+              <ul class="bullet-list">
+                <li><strong>Kerberos (Puerto 88):</strong> Detección de abusos en emisión de tickets, AS-REP Roasting y pulverización de contraseñas.</li>
+                <li><strong>LDAP / LDAPS (Puertos 389 / 636):</strong> Inspección de inyecciones de filtros y enumeración masiva de objetos AD.</li>
+                <li><strong>SMB/CIFS (Puerto 445):</strong> Auditoría de transacciones SMB2/SMB3, protección contra exploits remotos (tipo EternalBlue) y extracción de hashes de archivos en tránsito.</li>
+                <li><strong>Paquete de Primera Clase:</strong> Integración directa en Debian 12/13 con `systemd` y `suricata-update`.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: ANÁLISIS TÉCNICO: SNORT 3 Y WIRESHARK -->
+    <section class="slide" data-slide="6">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">03 · Análisis de Herramientas Open Source</span>
+          <h2 class="slide-title">Plataforma 2: Snort 3 y Rol Forense de Wireshark</h2>
+          <p class="slide-subtitle">La reescritura arquitectónica de Cisco Talos y el análisis interactivo de paquetes</p>
+        </div>
+        <span class="slide-badge">Snort 3 · Wireshark 4</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon amber">🐗</div>
+              <h3 class="card-title">Snort 3 (Cisco Talos)</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list">
+                <li><strong>Evolución Multihilo:</strong> Supera la limitación monohilo histórica de Snort 2 compartiendo estado global entre hilos de procesamiento.</li>
+                <li><strong>Configuración en Lua (`snort.lua`):</strong> Abandona la sintaxis rígida en favor de un lenguaje interpretado modular y extensible.</li>
+                <li><strong>Capa DAQ (*Data Acquisition*):</strong> Controladores modulares (`daq_pcap`, `daq_afpacket`, `daq_nfq`).</li>
+                <li><strong>Desventaja en Debian:</strong> No se encuentra como paquete oficial nativo en repositorios estables de Debian 12/13; requiere compilación manual o contenedores Docker con privilegios elevados.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">🦈</div>
+              <h3 class="card-title">Wireshark (Analizador Forense)</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list purple">
+                <li><strong>Rol No Antagónico:</strong> No es un demonio de descarte desatendido en tiempo real, sino una herramienta de auditoría forense profunda.</li>
+                <li><strong>Inspección Bit a Bit:</strong> Permite desensamblar volcados de tráfico (*PCAP*) generados por Suricata para investigar incidentes confirmados.</li>
+                <li><strong>Validación de Firmas:</strong> Esencial durante la fase de desarrollo y prueba para contrastar campos (`content`, `byte_test`, `pcre`) con el exploit real.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: TABLA COMPARATIVA TÉCNICA -->
+    <section class="slide" data-slide="7">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">03 · Análisis de Herramientas Open Source</span>
+          <h2 class="slide-title">Comparativa Técnica Rigurosa: Suricata vs Snort 3</h2>
+          <p class="slide-subtitle">Evaluación confrontada en diez dimensiones técnicas críticas de ingeniería de seguridad</p>
+        </div>
+        <span class="slide-badge">Evaluación Objetiva</span>
+      </div>
+      <div class="slide-content">
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Criterio Técnico</th>
+                <th>Suricata (v7.x)</th>
+                <th>Snort 3 (v3.x)</th>
+                <th>Veredicto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Arquitectura de Hilos</strong></td>
+                <td>Multihilo nativo y simétrico con afinidad de núcleos (*CPU flow pinning*)</td>
+                <td>Multihilo modular coordinado a través de la capa DAQ</td>
+                <td><span class="pill pill-green">Suricata</span></td>
+              </tr>
+              <tr>
+                <td><strong>Aceleración de Patrones</strong></td>
+                <td>Intel Hyperscan nativo optimizado con soporte AVX2/AVX-512</td>
+                <td>Soporte de Hyperscan y algoritmos AC-BNFA mediante módulos Lua</td>
+                <td><span class="pill pill-green">Empate Técnico</span></td>
+              </tr>
+              <tr>
+                <td><strong>Mecanismo IPS en Linux</strong></td>
+                <td>Integración directa con `libnetfilter_queue` y `nftables`</td>
+                <td>Dependencia del controlador `daq_nfq` en la capa DAQ</td>
+                <td><span class="pill pill-green">Suricata</span></td>
+              </tr>
+              <tr>
+                <td><strong>Protocolos Active Directory</strong></td>
+                <td>Decodificadores nativos de SMB (445), Kerberos (88), LDAP (389) y DCERPC</td>
+                <td>Enfoque en HTTP/TCP/UDP; inspección SMB avanzada más reciente</td>
+                <td><span class="pill pill-green">Suricata (Crítico)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Telemetría y Registro</strong></td>
+                <td>Estándar unificado EVE JSON nativo (`eve.json`) de alto desempeño</td>
+                <td>Salida JSON configurable (`alert_json`), texto plano y Unified2</td>
+                <td><span class="pill pill-green">Suricata</span></td>
+              </tr>
+              <tr>
+                <td><strong>Disponibilidad en Debian</strong></td>
+                <td>Paquete oficial de primera clase (`apt install suricata`)</td>
+                <td>Requiere compilación de dependencias o contenedor con `CAP_NET_ADMIN`</td>
+                <td><span class="pill pill-green">Suricata</span></td>
+              </tr>
+              <tr>
+                <td><strong>Formato de Configuración</strong></td>
+                <td>Archivo estandarizado y declarativo en YAML (`suricata.yaml`)</td>
+                <td>Scripts en lenguaje interpretado Lua (`snort.lua`)</td>
+                <td><span class="pill pill-blue">YAML (Legibilidad)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Resiliencia Operativa</strong></td>
+                <td>Soporte nativo de `bypass` en `nftables` (arquitectura Fail-Open)</td>
+                <td>Soporte dependiente del modo de tolerancia configurado en DAQ</td>
+                <td><span class="pill pill-green">Suricata</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: JUSTIFICACIÓN DE SELECCIÓN PARA DC1 -->
+    <section class="slide" data-slide="8">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">03 · Análisis de Herramientas Open Source</span>
+          <h2 class="slide-title">Justificación de Selección para dc1 (192.168.0.2)</h2>
+          <p class="slide-subtitle">Por qué Suricata 7 es la elección óptima para blindar el servidor central de la organización</p>
+        </div>
+        <span class="slide-badge">Decisión de Ingeniería</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-4col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">🔑</div>
+              <h3 class="card-title" style="font-size: 1rem;">Blindaje AD DC</h3>
+            </div>
+            <div class="card-body">
+              <p>Inspección nativa sin preprocesadores de <strong>SMB, Kerberos y LDAP</strong>, protegiendo al Controlador de Dominio de ataques como <em>Kerberoasting</em> o explotación de shares.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">📦</div>
+              <h3 class="card-title" style="font-size: 1rem;">Debian Nativo</h3>
+            </div>
+            <div class="card-body">
+              <p>Despliegue e integración limpia con <strong>systemd</strong>, sin sobrecarga ni los riesgos de seguridad que implica otorgar permisos `CAP_NET_ADMIN` a un contenedor.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon amber">⚡</div>
+              <h3 class="card-title" style="font-size: 1rem;">Hyperscan + Hilos</h3>
+            </div>
+            <div class="card-body">
+              <p>Distribución paralela de flujos en todos los núcleos de CPU del servidor físico, evitando cuellos de botella en transferencias masivas SMB o tráfico HTTPS.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">🛡️</div>
+              <h3 class="card-title" style="font-size: 1rem;">Resiliencia Bypass</h3>
+            </div>
+            <div class="card-body">
+              <p>Enlace directo con <strong>NFQUEUE</strong> y cortafuegos <strong>nftables</strong> con directiva `bypass`: si el proceso se reinicia, la red sigue operando sin cortes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: PROPUESTA ARQUITECTÓNICA: LAS 3 POSICIONES -->
+    <section class="slide" data-slide="9">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">04 · Propuesta Arquitectónica</span>
+          <h2 class="slide-title">¿Dónde Ubicar el Monitor en la Red Empresarial?</h2>
+          <p class="slide-subtitle">Diseño de una arquitectura defensiva integral en tres zonas estratégicas de inspección</p>
+        </div>
+        <span class="slide-badge">Topología Corporativa</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-3col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon red">🌐</div>
+              <h3 class="card-title">1. Borde / Perímetro</h3>
+            </div>
+            <div class="card-body">
+              <span class="pill pill-red">Tráfico Norte - Sur · In-line</span>
+              <ul class="bullet-list red">
+                <li><strong>Ubicación:</strong> Inmediatamente tras el router de borde (TP-Link TL-WR850N).</li>
+                <li><strong>Tipo:</strong> IPS en línea activo.</li>
+                <li><strong>Objetivo:</strong> Frenar amenazas provenientes de Internet (escaneos masivos externos, tráfico a servidores C2, exploits a servicios DMZ).</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">🔀</div>
+              <h3 class="card-title">2. Núcleo / Distribución</h3>
+            </div>
+            <div class="card-body">
+              <span class="pill pill-blue">Tráfico Este - Oeste · SPAN / TAP</span>
+              <ul class="bullet-list">
+                <li><strong>Ubicación:</strong> Conectado a un puerto espejo del Switch Central.</li>
+                <li><strong>Tipo:</strong> IDS pasivo fuera de banda.</li>
+                <li><strong>Objetivo:</strong> Detección de movimientos laterales entre VLANs, propagación de malware interno y envenenamiento ARP.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">🖥️</div>
+              <h3 class="card-title">3. Servidor Central (dc1)</h3>
+            </div>
+            <div class="card-body">
+              <span class="pill pill-green">H-NIPS en Host · NFQUEUE</span>
+              <ul class="bullet-list green">
+                <li><strong>Ubicación:</strong> Acoplado al kernel en el servidor físico `dc1` (192.168.0.2).</li>
+                <li><strong>Tipo:</strong> IPS activo en línea.</li>
+                <li><strong>Objetivo:</strong> Protección directa contra ataques directos a Active Directory (88, 389), SMB (445), Nginx (80/443) y SSH (22).</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: DIAGRAMA LÓGICO DE LA RED -->
+    <section class="slide" data-slide="10">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">04 · Propuesta Arquitectónica</span>
+          <h2 class="slide-title">Diagrama Lógico de Arquitectura y Flujo de Inspección</h2>
+          <p class="slide-subtitle">Distribución física y lógica en la subred plana corporativa 192.168.0.0/24</p>
+        </div>
+        <span class="slide-badge">Topología Integral</span>
+      </div>
+      <div class="slide-content">
+        <div class="diag-container">
+          <!-- Nivel Superior: WAN y Router -->
+          <div class="flow-row">
+            <div class="flow-node node-wan">
+              <span>Internet / Red WAN</span>
+              <small>Tráfico Externo no Confiable</small>
+            </div>
+            <div class="flow-arrow">⬇</div>
+            <div class="flow-node node-router">
+              <span>Router TP-Link TL-WR850N (192.168.0.1)</span>
+              <small>[Posición 1: Sensor IPS/IDS Perimetral]</small>
+            </div>
+          </div>
+
+          <!-- Nivel Medio: Bifurcación LAN vs dc1 -->
+          <div class="flow-row" style="gap: 30px;">
+            <!-- Rama Izquierda: LAN / Switch / Clientes -->
+            <div style="flex: 1; border: 1px dashed #38bdf8; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: rgba(56, 189, 248, 0.04);">
+              <div style="font-size: 0.75rem; font-weight: 700; color: #38bdf8;">RED LAN CORPORATIVA (192.168.0.0/24)</div>
+              <div class="flow-node node-switch" style="width: 100%;">
+                <span>Conmutador LAN / Switch Central</span>
+                <small>[Posición 2: Sensor IDS SPAN / Núcleo]</small>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <div class="flow-node" style="flex: 1; background: rgba(255,255,255,0.05); color: #e2e8f0;">
+                  <span>Clientes & Admins</span>
+                  <small>IPs .50 – .199</small>
+                </div>
+                <div class="flow-node" style="flex: 1; background: rgba(168, 85, 247, 0.15); border-color: #a855f7; color: #d8b4fe;">
+                  <span>Server Zabbix</span>
+                  <small>IP .3 (Físico)</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rama Derecha: Servidor Central dc1 (H-NIPS) -->
+            <div style="flex: 1.2; border: 1px dashed #10b981; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: rgba(16, 185, 129, 0.04);">
+              <div style="font-size: 0.75rem; font-weight: 700; color: #10b981;">SERVIDOR CENTRAL dc1 (192.168.0.2) [Posición 3: H-NIPS]</div>
+              <div class="flow-node node-wan" style="width: 100%;">
+                <span>NIC eno1 ➔ Kernel nftables (hook input)</span>
+                <small>Regla: meta l4proto tcp queue num 0 bypass</small>
+              </div>
+              <div class="flow-node node-suri" style="width: 100%;">
+                <span>Motor Suricata 7 (IPS Multihilo en Host)</span>
+                <small>Evaluación de firmas locales homelab.rules con Hyperscan</small>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <div class="flow-node node-accept" style="flex: 1;">
+                  <span>ACCEPT</span>
+                  <small>AD DC · Web · SSH</small>
+                </div>
+                <div class="flow-node node-drop" style="flex: 1;">
+                  <span>DROP</span>
+                  <small>NF_DROP · fast.log</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 11: PIPELINE DE DECISIÓN EN KERNEL (NFQUEUE) -->
+    <section class="slide" data-slide="11">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">04 · Propuesta Arquitectónica</span>
+          <h2 class="slide-title">Pipeline de Intercepción en Núcleo (Kernel Flow)</h2>
+          <p class="slide-subtitle">El camino que recorre un paquete en microsegundos dentro de la pila de red de Linux</p>
+        </div>
+        <span class="slide-badge">Netfilter Architecture</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">⚙️</div>
+              <h3 class="card-title">Secuencia de Filtrado Paso a Paso</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list">
+                <li><strong>1. Recepción en NIC (`eno1`):</strong> La trama llega por el controlador de red físico.</li>
+                <li><strong>2. Evaluación en Hook `input` de `nftables`:</strong> El cortafuegos detecta paquetes TCP entrantes y los redirige hacia la cola número 0.</li>
+                <li><strong>3. Traspaso a Memoria Compartida (`NFQUEUE 0`):</strong> El kernel suspende el avance del paquete hasta recibir el veredicto del IPS.</li>
+                <li><strong>4. Inspección en Suricata:</strong> Un hilo de Suricata decodifica la capa 7 y evalúa las reglas compiladas con Hyperscan.</li>
+                <li><strong>5. Emisión de Veredicto:</strong>
+                  <br>• Si es legítimo ➔ `NF_ACCEPT` (entrega al daemon).
+                  <br>• Si coincide con firma `drop` ➔ `NF_DROP` (destrucción inmediata del búfer en RAM).
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">💻</div>
+              <h3 class="card-title">Reglas de Kernel & Resiliencia</h3>
+            </div>
+            <div class="card-body">
+              <p>Regla inyectada dinámicamente en `nftables`:</p>
+              <div class="code-block">
+<span class="code-comment"># nftables: Inyección en cadena input</span>
+<span class="code-cmd">sudo nft</span> add rule inet filter input \
+  meta l4proto tcp ct state new,established \
+  counter <span class="code-alert">queue num 0 bypass</span>
+              </div>
+              <p><strong>Garantía de Continuidad Operativa (*Fail-Open*):</strong></p>
+              <p>El parámetro <span class="pill pill-green">bypass</span> es fundamental: si Suricata se satura o se reinicia, el kernel no bloquea el tráfico, previniendo caídas totales de la intranet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 12: MATRIZ DE PROTECCIÓN POR SERVICIO Y PUERTO -->
+    <section class="slide" data-slide="12">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">04 · Propuesta Arquitectónica</span>
+          <h2 class="slide-title">Matriz de Blindaje Defensivo en dc1</h2>
+          <p class="slide-subtitle">Correspondencia directa entre puertos expuestos, amenazas y mecanismos de Suricata</p>
+        </div>
+        <span class="slide-badge">Matriz de Defensa</span>
+      </div>
+      <div class="slide-content">
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Servicio en dc1</th>
+                <th>Puertos</th>
+                <th>Amenazas Mitigadas</th>
+                <th>Mecanismo Técnico de Suricata</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Active Directory DC (Kerberos)</strong></td>
+                <td>88 (TCP/UDP)</td>
+                <td>Fuerza bruta a contraseñas, AS-REP Roasting, sondeos masivos.</td>
+                <td>Regla con umbral (`threshold`) y firma `sid:9000030` con rate-limiting.</td>
+              </tr>
+              <tr>
+                <td><strong>Active Directory DC (LDAP)</strong></td>
+                <td>389, 636 (TCP)</td>
+                <td>Reconocimiento no autorizado de objetos, inyecciones de filtros LDAP.</td>
+                <td>Decodificador nativo de capa 7 para transacciones LDAP y alertas estructuradas.</td>
+              </tr>
+              <tr>
+                <td><strong>Samba File Server (SMB)</strong></td>
+                <td>445 (TCP)</td>
+                <td>Exploits remotos (MS17-010 EternalBlue), ransomware en carpetas compartidas.</td>
+                <td>Parser nativo SMB2/SMB3, inspección de comandos y hash de archivos.</td>
+              </tr>
+              <tr>
+                <td><strong>Servidor Web Nginx</strong></td>
+                <td>80, 443 (TCP)</td>
+                <td>Inyecciones SQL (SQLi), RCE (Log4Shell), traversales de directorio.</td>
+                <td>Regla IPS con acción `drop` en línea (`sid:9000002`) que aborta el flujo.</td>
+              </tr>
+              <tr>
+                <td><strong>Servidor DNS AD</strong></td>
+                <td>53 (UDP/TCP)</td>
+                <td>Consultas malformadas, envenenamiento de caché, túneles encubiertos DNS.</td>
+                <td>Parser nativo de protocolo DNS con validación de anomalías de RFC.</td>
+              </tr>
+              <tr>
+                <td><strong>Acceso Remoto Seguro (SSH)</strong></td>
+                <td>22 (TCP)</td>
+                <td>Escaneo sigiloso de puertos, ataques automatizados de diccionario.</td>
+                <td>Correlación de banderas TCP en conjunto con telemetría en `eve.json`.</td>
+              </tr>
+              <tr>
+                <td><strong>Capa de Red Global</strong></td>
+                <td>Todos</td>
+                <td>Cartografiado sigiloso con escaneos TCP NULL y TCP XMAS.</td>
+                <td>Detección de combinaciones ilícitas de banderas (`flags:0` y `flags:FPU`).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 13: GUÍA OPERATIVA Y COMANDOS DE ADMINISTRACIÓN -->
+    <section class="slide" data-slide="13">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">05 · Operación y Comandos</span>
+          <h2 class="slide-title">Guía Operativa de Administración de Suricata</h2>
+          <p class="slide-subtitle">Comandos estandarizados de control de ciclo de vida, alternancia de modos y telemetría</p>
+        </div>
+        <span class="slide-badge">CLI / Sysadmin</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">⚙️</div>
+              <h3 class="card-title" style="font-size: 1rem;">1. Control de Servicio y Validación</h3>
+            </div>
+            <div class="card-body">
+              <div class="code-block">
+<span class="code-comment"># Estado operativo y métricas del demonio:</span>
+<span class="code-cmd">sudo systemctl</span> status suricata
+
+<span class="code-comment"># Recargar firmas en caliente sin perder captura:</span>
+<span class="code-cmd">sudo systemctl</span> reload suricata
+
+<span class="code-comment"># Validación preventiva de sintaxis y reglas (-T):</span>
+<span class="code-cmd">sudo suricata</span> <span class="code-param">-T</span> -c /etc/suricata/suricata.yaml -v
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon amber">🔀</div>
+              <h3 class="card-title" style="font-size: 1rem;">2. Alternancia Dinámica (IDS vs IPS)</h3>
+            </div>
+            <div class="card-body">
+              <div class="code-block">
+<span class="code-comment"># Activar modo IPS (inserta regla NFQUEUE en nftables):</span>
+<span class="code-cmd">sudo bash</span> server/suricata/ips-toggle.sh <span class="code-param">--ips</span>
+
+<span class="code-comment"># Retornar a modo IDS pasivo (solo alertas):</span>
+<span class="code-cmd">sudo bash</span> server/suricata/ips-toggle.sh <span class="code-param">--ids</span>
+
+<span class="code-comment"># Consultar estado activo y regla de cola:</span>
+<span class="code-cmd">bash</span> server/suricata/ips-toggle.sh <span class="code-param">--status</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">📜</div>
+              <h3 class="card-title" style="font-size: 1rem;">3. Monitoreo de Bitácoras en Vivo</h3>
+            </div>
+            <div class="card-body">
+              <div class="code-block">
+<span class="code-comment"># Monitoreo tradicional en texto plano (fast.log):</span>
+<span class="code-cmd">sudo tail</span> -f /var/log/suricata/fast.log
+
+<span class="code-comment"># Filtrar alertas y bloqueos en JSON estructurado:</span>
+<span class="code-cmd">sudo tail</span> -f /var/log/suricata/eve.json | \
+  jq <span class="code-param">'select(.event_type=="alert" or .event_type=="drop")'</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">🧪</div>
+              <h3 class="card-title" style="font-size: 1rem;">4. Actualización y Suite de Pruebas</h3>
+            </div>
+            <div class="card-body">
+              <div class="code-block">
+<span class="code-comment"># Descargar firmas de Emerging Threats Open:</span>
+<span class="code-cmd">sudo suricata-update</span> && <span class="code-cmd">sudo suricatasc</span> -c reload-rules
+
+<span class="code-comment"># Ejecutar batería de pruebas de validación E2E:</span>
+<span class="code-cmd">sudo bash</span> server/suricata/test-ids-ips.sh
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 14: VALIDACIÓN EXPERIMENTAL EN EL LABORATORIO -->
+    <section class="slide" data-slide="14">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">06 · Validación y Evidencias</span>
+          <h2 class="slide-title">Validación Práctica en Laboratorio</h2>
+          <p class="slide-subtitle">Demostración empírica de la dualidad funcional ejecutada con test-ids-ips.sh</p>
+        </div>
+        <span class="slide-badge">Evidencias Empíricas</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">👁️</div>
+              <h3 class="card-title">Caso 1: Sonda en Modo IDS (Pasivo)</h3>
+            </div>
+            <div class="card-body">
+              <p>Envío de payload de reconocimiento `TEST_PROBE_ALERT_ONLY`:</p>
+              <div class="code-block" style="font-size: 0.74rem;">
+[**] [1:9000010:1] <span class="code-cmd">[HOMELAB-IDS-ALERT]</span> Sonda de prueba detectada (TEST_PROBE_ALERT_ONLY) [**] [Priority: 3] {TCP} 192.168.0.50:48210 -> 192.168.0.2:80
+              </div>
+              <p><strong>Comportamiento de Red:</strong> Handshake completado, el servidor Nginx responde con código HTTP 200 OK. La conexión no es alterada.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon red">🛑</div>
+              <h3 class="card-title">Caso 2: Bloqueo en Modo IPS (Activo)</h3>
+            </div>
+            <div class="card-body">
+              <p>Envío de exploit web simulado `MALICIOUS_SIMULATION_ATTACK`:</p>
+              <div class="code-block" style="font-size: 0.74rem;">
+<span class="code-alert">[Drop]</span> [**] [1:9000002:1] <span class="code-alert">[HOMELAB-IPS-DROP]</span> Bloqueo HTTP: Carga maliciosa en aplicacion web [**] [Priority: 1] {TCP} 192.168.0.50:51402 -> 192.168.0.2:80
+              </div>
+              <p><strong>Comportamiento de Red:</strong> La conexión se corta de inmediato (Reset/Timeout). El kernel descarta el paquete y Nginx jamás lo recibe.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 10px;">
+          <div class="card-header" style="padding-bottom: 6px; margin-bottom: 8px;">
+            <div class="card-icon green">📊</div>
+            <h3 class="card-title" style="font-size: 0.95rem;">Telemetría JSON EVE Generada (eve.json)</h3>
+          </div>
+          <div class="code-block" style="font-size: 0.72rem; line-height: 1.4;">
+{"timestamp":"2026-10-24T11:48:22-0400", "event_type":"<span class="code-alert">drop</span>", "src_ip":"192.168.0.50", "dest_ip":"192.168.0.2", "proto":"TCP", "action":"<span class="code-alert">blocked</span>", "alert":{"action":"drop","signature_id":9000002,"signature":"[HOMELAB-IPS-DROP] Bloqueo HTTP"}}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 15: CONCLUSIONES Y RECOMENDACIONES -->
+    <section class="slide" data-slide="15">
+      <div class="slide-header">
+        <div>
+          <span class="slide-category">07 · Cierre y Buenas Prácticas</span>
+          <h2 class="slide-title">Conclusiones y Recomendaciones</h2>
+          <p class="slide-subtitle">Síntesis de aprendizajes de ingeniería y directrices para despliegues empresariales</p>
+        </div>
+        <span class="slide-badge">Síntesis Final</span>
+      </div>
+      <div class="slide-content">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">🎯</div>
+              <h3 class="card-title">Conclusiones Principales</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list green">
+                <li><strong>Gestión Estratégica del Riesgo:</strong> La elección entre IDS e IPS no es excluyente: el IDS otorga visibilidad sin riesgo de parada, mientras que el IPS es imperativo para neutralizar ataques activos automatizados.</li>
+                <li><strong>Superioridad Técnica de Suricata:</strong> Su modelo multihilo simétrico, aceleración Hyperscan y decodificación nativa de <strong>SMB, Kerberos y LDAP</strong> la convierten en la solución óptima para entornos con Directorio Activo y Samba 4.</li>
+                <li><strong>Arquitectura Distribuida Obligatoria:</strong> El monitoreo exclusivo de borde deja ciega a la empresa ante movimientos laterales; la defensa exige combinar sensores en el switch (SPAN) y sensores en host (H-NIPS).</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon amber">💡</div>
+              <h3 class="card-title">Recomendaciones de Despliegue</h3>
+            </div>
+            <div class="card-body">
+              <ul class="bullet-list">
+                <li><strong>Fase de Calibración (*Tuning*):</strong> Operar todo nuevo sensor durante 2 a 4 semanas en modo IDS pasivo para caracterizar el tráfico basal y depurar falsos positivos antes de activar el bloqueo (`drop`).</li>
+                <li><strong>Garantía Fail-Open:</strong> Configurar siempre la cláusula `bypass` en `nftables` para evitar caídas totales del negocio ante fallas imprevistas del proceso de inspección.</li>
+                <li><strong>Centralización SIEM:</strong> Ingestar el flujo `eve.json` en plataformas como Elasticsearch o Zabbix para correlación de eventos y generación de alertas operativas.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       BARRA INFERIOR DE NAVEGACIÓN
+       ======================================================================== -->
+  <footer class="deck-footer">
+    <div class="footer-hints">
+      <span>Navegar: <kbd>←</kbd> <kbd>→</kbd> o <kbd>Espacio</kbd></span>
+      <span>Resumen: <kbd>O</kbd> o <kbd>Esc</kbd></span>
+      <span>Pantalla Completa: <kbd>F</kbd></span>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-nav" id="btnPrev" title="Anterior (←)">❮</button>
+      <button class="btn-nav" id="btnNext" title="Siguiente (→)">❯</button>
+    </div>
+  </footer>
+
+  <!-- ========================================================================
+       MODAL DE VISTA GENERAL (OVERVIEW)
+       ======================================================================== -->
+  <div class="overview-modal" id="overviewModal">
+    <div class="overview-header">
+      <h2 style="font-size: 1.5rem; color: #fff;">Cuadrícula de Diapositivas</h2>
+      <button class="btn-ctrl" id="btnCloseOverview">✕ Cerrar (Esc)</button>
+    </div>
+    <div class="overview-grid" id="overviewGrid">
+      <!-- Generado dinámicamente por JavaScript -->
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       LÓGICA INTERACTIVA EN VANILLA JAVASCRIPT
+       ======================================================================== -->
+  <script>
+    (function() {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const totalSlides = slides.length;
+      let currentIndex = 0;
+
+      const slideCounter = document.getElementById('slideCounter');
+      const progressBar = document.getElementById('progressBar');
+      const btnPrev = document.getElementById('btnPrev');
+      const btnNext = document.getElementById('btnNext');
+      const btnOverview = document.getElementById('btnOverview');
+      const btnCloseOverview = document.getElementById('btnCloseOverview');
+      const btnFullscreen = document.getElementById('btnFullscreen');
+      const overviewModal = document.getElementById('overviewModal');
+      const overviewGrid = document.getElementById('overviewGrid');
+
+      // Títulos cortos para el resumen
+      const slideMeta = [
+        { title: "Portada", desc: "A8 · Herramientas de Monitoreo" },
+        { title: "Problemática", desc: "Perímetro estático y vectores de ataque" },
+        { title: "IDS vs IPS", desc: "Conceptos fundamentales y modos" },
+        { title: "Dilemas Operativos", desc: "Falsos positivos, latencia y bypass" },
+        { title: "Suricata 7", desc: "Multihilo, Hyperscan y AD protocols" },
+        { title: "Snort 3 & Wireshark", desc: "DAQ, Lua y análisis forense" },
+        { title: "Comparativa Técnica", desc: "Tabla confrontada en 8 dimensiones" },
+        { title: "Justificación dc1", desc: "Por qué Suricata 7 en 192.168.0.2" },
+        { title: "Zonas de Ubicación", desc: "Las 3 posiciones del monitor" },
+        { title: "Diagrama de Red", desc: "Topología y flujo de inspección" },
+        { title: "Pipeline de Kernel", desc: "Netfilter, NFQUEUE y veredictos" },
+        { title: "Matriz de Protección", desc: "Blindaje de Kerberos, LDAP, SMB, Web" },
+        { title: "Guía Operativa", desc: "Comandos CLI y administración" },
+        { title: "Pruebas de Laboratorio", desc: "Evidencias en fast.log y eve.json" },
+        { title: "Conclusiones", desc: "Buenas prácticas y recomendaciones" }
+      ];
+
+      function updateSlide(newIndex) {
+        if (newIndex < 0 || newIndex >= totalSlides) return;
+
+        slides.forEach((slide, idx) => {
+          slide.classList.remove('active', 'prev');
+          if (idx === newIndex) {
+            slide.classList.add('active');
+          } else if (idx < newIndex) {
+            slide.classList.add('prev');
+          }
+        });
+
+        currentIndex = newIndex;
+        const currentNum = String(currentIndex + 1).padStart(2, '0');
+        const totalNum = String(totalSlides).padStart(2, '0');
+        slideCounter.textContent = `${currentNum} / ${totalNum}`;
+
+        const progressPercent = ((currentIndex + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercent}%`;
+
+        btnPrev.disabled = (currentIndex === 0);
+        btnNext.disabled = (currentIndex === totalSlides - 1);
+
+        // Actualizar selección en el overview
+        document.querySelectorAll('.overview-thumb').forEach((thumb, idx) => {
+          thumb.classList.toggle('active', idx === currentIndex);
+        });
+
+        // Guardar hash en URL
+        history.replaceState(null, null, `#${currentIndex + 1}`);
+      }
+
+      function nextSlide() {
+        if (currentIndex < totalSlides - 1) updateSlide(currentIndex + 1);
+      }
+
+      function prevSlide() {
+        if (currentIndex > 0) updateSlide(currentIndex - 1);
+      }
+
+      function toggleOverview() {
+        overviewModal.classList.toggle('active');
+      }
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => console.log(err));
+        } else {
+          if (document.exitFullscreen) document.exitFullscreen();
+        }
+      }
+
+      // Inicializar Cuadrícula del Overview
+      function buildOverview() {
+        overviewGrid.innerHTML = '';
+        slides.forEach((slide, idx) => {
+          const meta = slideMeta[idx] || { title: `Slide ${idx + 1}`, desc: "" };
+          const thumb = document.createElement('div');
+          thumb.className = `overview-thumb ${idx === currentIndex ? 'active' : ''}`;
+          thumb.innerHTML = `
+            <span class="thumb-num">SLIDE ${String(idx + 1).padStart(2, '0')}</span>
+            <span class="thumb-title">${meta.title}</span>
+            <span class="thumb-desc">${meta.desc}</span>
+          `;
+          thumb.addEventListener('click', () => {
+            updateSlide(idx);
+            toggleOverview();
+          });
+          overviewGrid.appendChild(thumb);
+        });
+      }
+
+      // Eventos de botones
+      btnNext.addEventListener('click', nextSlide);
+      btnPrev.addEventListener('click', prevSlide);
+      btnOverview.addEventListener('click', toggleOverview);
+      btnCloseOverview.addEventListener('click', toggleOverview);
+      btnFullscreen.addEventListener('click', toggleFullscreen);
+
+      // Eventos de teclado
+      window.addEventListener('keydown', (e) => {
+        if (overviewModal.classList.contains('active')) {
+          if (e.key === 'Escape' || e.key === 'o' || e.key === 'O') {
+            toggleOverview();
+          }
+          return;
+        }
+
+        switch (e.key) {
+          case 'ArrowRight':
+          case 'PageDown':
+          case ' ':
+            e.preventDefault();
+            nextSlide();
+            break;
+          case 'ArrowLeft':
+          case 'PageUp':
+          case 'Backspace':
+            e.preventDefault();
+            prevSlide();
+            break;
+          case 'Home':
+            e.preventDefault();
+            updateSlide(0);
+            break;
+          case 'End':
+            e.preventDefault();
+            updateSlide(totalSlides - 1);
+            break;
+          case 'f':
+          case 'F':
+            toggleFullscreen();
+            break;
+          case 'o':
+          case 'O':
+          case 'Escape':
+            toggleOverview();
+            break;
+        }
+      });
+
+      // Cargar slide desde URL hash si existe
+      function loadInitialSlide() {
+        const hash = window.location.hash.replace('#', '');
+        const slideNum = parseInt(hash, 10);
+        if (!isNaN(slideNum) && slideNum >= 1 && slideNum <= totalSlides) {
+          updateSlide(slideNum - 1);
+        } else {
+          updateSlide(0);
+        }
+      }
+
+      buildOverview();
+      loadInitialSlide();
+    })();
+  </script>
+</body>
+</html>

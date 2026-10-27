@@ -293,3 +293,20 @@ A partir de la evidencia técnica única obtenida, se procede a dividir y analiz
       \item \textbf{Suricata IPS:} Descarta inmediatamente los paquetes (\texttt{DROP}) que contienen firmas de explotación, forzando la desconexión del socket TCP del script de Nmap y generando el estado \texttt{Script execution failed}.
     \end{enumerate}
 \end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{EVAL-01: Auditoría de Superficie y Postura de Seguridad en la Plataforma de Firma Digital}
+% -----------------------------------------------------------------------------
+
+La evaluación de la plataforma de firma digital institucional PAdES abarcó tanto la auditoría de exposición de su API REST como el análisis de integridad de sus operaciones criptográficas:
+
+\begin{enumerate}
+  \item \textbf{Verificación de Control de Acceso y Prevención de Uso Indebido de Claves (Auth Gate):}
+  Se ejecutaron sondas dirigidas hacia los endpoints críticos de emisión y firmado (\texttt{/api/sign}, \texttt{/api/generate\_keys} y \texttt{/api/download\_p12}). El middleware de seguridad Zero Trust interceptó las solicitudes carentes de credenciales respondiendo de manera unívoca con el código de estado \texttt{401 Unauthorized}, confirmando que ningún usuario no autenticado en el segmento de red puede estampar firmas apócrifas, generar certificados a nombre de terceros ni sustraer contenedores PKCS\#12 (mitigación proactiva de debilidades de control de acceso CWE-306).
+
+  \item \textbf{Auditoría de Confidencialidad en Tránsito (CWE-319 y Despliegue Seguro):}
+  Al evaluar el servicio en su puerto de prueba directo (\texttt{8090/tcp} HTTP), se evidenció el riesgo inherente de transmisión en texto plano de datos biométricos (trazos de firma capturados en el canvas HTML5) y credenciales de usuario. Este vector de riesgo queda completamente neutralizado en la arquitectura definitiva del homelab mediante la canalización obligatoria a través del proxy inverso Nginx (\texttt{https://firma.sudoers.lan}) con terminación TLS 1.3, obligando al cifrado de extremo a extremo de los flujos de subida, firmado y verificación de PDFs.
+
+  \item \textbf{Resistencia a Manipulaciones y Verificación Semafórica de Integridad:}
+  Se sometió el endpoint de validación (\texttt{/api/verify}) a pruebas con documentos alterados intencionalmente byte a byte. El motor de verificación detectó la incongruencia entre el hash SHA-256 recalculado sobre el \textit{ByteRange} y el hash sellado en el contenedor CMS, marcando de forma inmediata el estado de alerta roja (\textit{Firma Inválida o Documento Alterado}), certificando la robustez del no repudio y la integridad probatoria exigida por el estándar PAdES ISO 32000-2.
+\end{enumerate}

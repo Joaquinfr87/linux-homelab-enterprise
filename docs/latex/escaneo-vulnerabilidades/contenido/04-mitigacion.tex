@@ -128,3 +128,38 @@ Dado que los scripts de ataque \texttt{http-sql-injection} y \texttt{http-vuln-c
   \item \textbf{Reglas WAF en Nginx:} Se conservan las matrices de coincidencia por expresiones regulares seguras en hexadecimal (\texttt{\textbackslash x27}, \texttt{\textbackslash x23}) que bloquean patrones de inyección SQL (\texttt{UNION SELECT}, \texttt{OR 1=1}) devolviendo \texttt{403 Forbidden}.
   \item \textbf{Suricata en Modo IPS (NFQUEUE):} Se mantienen activas las firmas de intrusión bancaria con regla de acción \texttt{drop}, registrando cada intento de intrusión en \texttt{/var/log/suricata/eve.json} para su visualización inmediata en la consola web EveBox (\texttt{http://192.168.100.85:5636/}).
 \end{enumerate}
+
+% -----------------------------------------------------------------------------
+\subsection{Remediación y Endurecimiento de la Plataforma de Firma Digital (PAdES)}
+% -----------------------------------------------------------------------------
+
+Para asegurar la inviolabilidad de las operaciones criptográficas, el resguardo de las llaves privadas y la integridad de los documentos PDF firmados en la plataforma institucional:
+
+\begin{enumerate}
+  \item \textbf{Canalización Exclusiva por Proxy Inverso TLS (\texttt{firma.sudoers.lan}):}
+  El contenedor \texttt{tso-firma} se mantiene confinado dentro de la red privada puente de Docker (\texttt{tso-net}), escuchando en el puerto interno \texttt{5000/tcp} sin exposición directa de sockets al exterior. Todo el tráfico de usuarios y clientes de auditoría se enruta obligatoriamente a través del servidor web Nginx con cifrado TLS 1.3:
+\begin{lstlisting}[style=terminal, caption={Configuracion de Proxy Inverso Seguro para Firma Digital en Nginx}, label={lst:nginx-firma-conf}]
+server {
+    listen 443 ssl http2;
+    server_name firma.sudoers.lan;
+
+    ssl_certificate /etc/ssl/banco/server.crt;
+    ssl_certificate_key /etc/ssl/banco/server.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://tso-firma:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+\end{lstlisting}
+
+  \item \textbf{Custodia de Claves Privadas y Permisos Restringidos en Reposo:}
+  Las llaves privadas de los certificados X.509 de los usuarios se almacenan en SQLite (\texttt{app.db}) cifradas mediante el esquema simétrico \textbf{Fernet} (\textbf{AES-128-CBC} con autenticación \textbf{HMAC-SHA256}). El archivo de la llave maestra y la base de datos se alojan en el volumen persistente \texttt{firma\_data} con permisos de archivo del sistema operativo \texttt{chmod 0600}, restringiendo su lectura al proceso del contenedor.
+
+  \item \textbf{Protección contra Clickjacking y Fuga de Trazos Biométricos:}
+  Dado que la aplicación incluye un lienzo interactivo HTML5 para la captura de rúbricas manuscritas, se inyectaron directivas perimétricas \texttt{X-Frame-Options "DENY"} y \texttt{Content-Security-Policy: frame-ancestors 'none'} para neutralizar de forma categórica ataques de \textit{UI Redressing} que intenten inducir la firma no consentida de transacciones bancarias.
+\end{enumerate}

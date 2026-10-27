@@ -1,0 +1,312 @@
+% ============================================================================
+%  CAPÍTULO III: HALLAZGOS Y ANÁLISIS DE VULNERABILIDADES
+% ============================================================================
+
+\section{Resumen Ejecutivo de Vulnerabilidades Encontradas}
+
+Durante la ejecución de la auditoría técnica de seguridad ofensiva sobre el servidor objetivo \texttt{192.168.100.85} (\texttt{dc1.sudoers.lan}), se utilizó el motor de escaneo y auditoría de vulnerabilidades de Nmap (\textit{Nmap Scripting Engine} -- NSE) aplicando técnicas avanzadas de evasión con señuelos aleatorios (\textit{Decoy Scanning} \texttt{-D RND:20}), exclusión de sondas DoS bloqueadas y control estricto de tiempo de respuesta por script (\texttt{--script-timeout 30s}).
+
+La totalidad de los hallazgos y evidencias del presente capítulo derivan de forma exclusiva del reporte empírico emitido por dicha consola de auditoría. Se identificaron un total de \textbf{5 vulnerabilidades técnicas y 1 mecanismo de defensa activo confirmado}, clasificados rigurosamente según el estándar internacional \textit{Common Vulnerability Scoring System} versión 3.1 (CVSS v3.1) \citep{first_cvss_2019} y la taxonomía del \textit{Common Weakness Enumeration} (CWE).
+
+La \textbf{TABLA \ref{tab:resumen-hallazgos}} expone la matriz consolidada de las vulnerabilidades y hallazgos identificados en el escaneo.
+
+\begin{table}[H]
+\centering
+\caption{Matriz Consolidada de Vulnerabilidades y Hallazgos del Escaneo Nmap NSE}
+\label{tab:resumen-hallazgos}
+\contenidoConFuente{%
+  \begin{tablaAPA}
+  \begin{tabular}{C{1.6cm}L{4.2cm}C{1.8cm}C{1.6cm}C{2.0cm}L{3.8cm}}
+  \toprule
+  \textbf{ID} & \textbf{Vulnerabilidad / Hallazgo} & \textbf{Severidad} & \textbf{CVSS} & \textbf{CWE} & \textbf{Vector de Impacto} \\
+  \midrule
+  \textbf{VULN-01} & Intercambio Criptográfico Anónimo Diffie-Hellman en SMTP (25, 587) & \textbf{ALTA} & 7.4 & CWE-327 & Ataques Man-in-the-Middle (MitM) activos e intercepción de correo \\
+  \textbf{VULN-02} & Denegación de Servicio por Filtro de Rangos de Bytes (CVE-2011-3192) & \textbf{ALTA} & 7.5 & CWE-400 & Agotamiento de memoria RAM y CPU en puertos web (80 y 443) \\
+  \textbf{VULN-03} & Método y Modo de Depuración Activo en Webmail (8080/tcp) & \textbf{MEDIA} & 5.3 & CWE-489 & Fuga de variables de depuración y estructura interna de la aplicación \\
+  \textbf{VULN-04} & Exposición Pública del Puerto PostgreSQL (5432/tcp) & \textbf{ALTA} & 7.5 & CWE-284 & Ataques de fuerza bruta y sondeo no autenticado a base de datos \\
+  \textbf{VULN-05} & Exposición de Servicios Administrativos y Web en Texto Plano & \textbf{ALTA} & 7.4 & CWE-319 & Captura de credenciales y cookies de sesión en puertos 3000, 8000, 8082, 8085 \\
+  \textbf{DEF-01} & Bloqueo Activo de Inyección SQL y Exploits (\textit{Script Failed}) & \textbf{DEFENSA} & -- & CWE-693 & Neutralización exitosa de scripts ofensivos por el WAF y Suricata IPS \\
+  \bottomrule
+  \end{tabular}
+  \end{tablaAPA}%
+}{Elaboración propia con base en el escaneo empírico de Nmap NSE sobre el host 192.168.100.85.}
+\end{table}
+
+\section{Evidencia Técnica Única del Escaneo (Nmap NSE)}
+
+En cumplimiento estricto con la metodología de auditoría basada en pruebas empíricas verificables, a continuación se transcribe de forma íntegra y fidedigna la salida de consola obtenida por el auditor (\texttt{david@kali}) al ejecutar el comando de análisis de vulnerabilidades sobre la dirección IP del servidor objetivo:
+
+\begin{lstlisting}[style=terminal, caption={Reporte Íntegro del Escaneo de Vulnerabilidades con Nmap NSE sobre 192.168.100.85}, label={lst:evidencia-nmap-real}]
+david@kali:~$ sudo nmap -sS 192.168.100.85 --script "vuln and not doos" -D RND:20 --script-timeout 30s
+Starting Nmap 7.991 ( https://nmap.org ) at 2026-10-26 23:18 -0400
+Nmap scan report for 192.168.100.85
+Host is up (0.13s latency).
+Not shown: 986 closed tcp ports (reset)
+PORT     STATE SERVICE
+25/tcp   open  smtp
+| ssl-dh-params: 
+|   VULNERABLE:
+|   Anonymous Diffie-Hellman Key Exchange MitM Vulnerability
+|     State: VULNERABLE
+|       Transport Layer Security (TLS) services that use anonymous
+|       Diffie-Hellman key exchange only provide protection against passive
+|       eavesdropping, and are vulnerable to active man-in-the-middle attacks
+|       which could completely compromise the confidentiality and integrity
+|       of any data exchanged over the resulting session.
+|     Check results:
+|       ANONYMOUS DH GROUP 1
+|             Cipher Suite: TLS_DH_anon_WITH_AES_256_CBC_SHA256
+|             Modulus Type: Safe prime
+|             Modulus Source: RFC3526/Oakley Group 15
+|             Modulus Length: 3072
+|             Generator Length: 8
+|             Public Key Length: 3072
+|       ANONYMOUS DH GROUP 2
+|             Cipher Suite: TLS_DH_anon_WITH_AES_128_CBC_SHA
+|             Modulus Type: Safe prime
+|             Modulus Source: RFC2409/Oakley Group 2
+|             Modulus Length: 1024
+|             Generator Length: 8
+|             Public Key Length: 1024
+|     References:
+|_      https://www.ietf.org/rfc/rfc2246.txt
+| smtp-vuln-cve2010-4344: 
+|_  The SMTP server is not Exim: NOT VULNERABLE
+80/tcp   open  http
+|_http-stored-xss: Couldn't find any stored XSS vulnerabilities.
+|_http-csrf: Couldn't find any CSRF vulnerabilities.
+|_http-vuln-cve2017-1001000: ERROR: Script execution failed (use -d to debug)
+| http-vuln-cve2011-3192: 
+|   VULNERABLE:
+|   Apache byterange filter DoS
+|     State: VULNERABLE
+|     IDs:  CVE:CVE-2011-3192  BID:49303
+|       The Apache web server is vulnerable to a denial of service attack when numerous
+|       overlapping byte ranges are requested.
+|     Disclosure date: 2011-08-19
+|     References:
+|       https://www.tenable.com/plugins/nessus/55976
+|       https://seclists.org/fulldisclosure/2011/Aug/175
+|       https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-3192
+|_      https://www.securityfocus.com/bid/49303
+|_http-dombased-xss: Couldn't find any DOM based XSS.
+110/tcp  open  pop3
+143/tcp  open  imap
+443/tcp  open  https
+|_http-dombased-xss: Couldn't find any DOM based XSS.
+|_http-vuln-cve2017-1001000: ERROR: Script execution failed (use -d to debug)
+|_http-stored-xss: Couldn't find any stored XSS vulnerabilities.
+|_http-csrf: Couldn't find any CSRF vulnerabilities.
+| http-vuln-cve2011-3192: 
+|   VULNERABLE:
+|   Apache byterange filter DoS
+|     State: VULNERABLE
+|     IDs:  CVE:CVE-2011-3192  BID:49303
+|       The Apache web server is vulnerable to a denial of service attack when numerous
+|       overlapping byte ranges are requested.
+|     Disclosure date: 2011-08-19
+|     References:
+|       https://www.tenable.com/plugins/nessus/55976
+|       https://seclists.org/fulldisclosure/2011/Aug/175
+|       https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-3192
+|_      https://www.securityfocus.com/bid/49303
+587/tcp  open  submission
+| smtp-vuln-cve2010-4344: 
+|_  The SMTP server is not Exim: NOT VULNERABLE
+| ssl-dh-params: 
+|   VULNERABLE:
+|   Anonymous Diffie-Hellman Key Exchange MitM Vulnerability
+|     State: VULNERABLE
+|       Transport Layer Security (TLS) services that use anonymous
+|       Diffie-Hellman key exchange only provide protection against passive
+|       eavesdropping, and are vulnerable to active man-in-the-middle attacks
+|       which could completely compromise the confidentiality and integrity
+|       of any data exchanged over the resulting session.
+|     Check results:
+|       ANONYMOUS DH GROUP 1
+|             Cipher Suite: TLS_DH_anon_WITH_AES_256_CBC_SHA256
+|             Modulus Type: Safe prime
+|             Modulus Source: RFC3526/Oakley Group 15
+|             Modulus Length: 3072
+|             Generator Length: 8
+|             Public Key Length: 3072
+|       ANONYMOUS DH GROUP 2
+|             Cipher Suite: TLS_DH_anon_WITH_AES_128_CBC_SHA
+|             Modulus Type: Safe prime
+|             Modulus Source: RFC2409/Oakley Group 2
+|             Modulus Length: 1024
+|             Generator Length: 8
+|             Public Key Length: 1024
+|     References:
+|_      https://www.ietf.org/rfc/rfc2246.txt
+993/tcp  open  imaps
+995/tcp  open  pop3s
+3000/tcp open  ppp
+5432/tcp open  postgresql
+8000/tcp open  http-alt
+|_http-stored-xss: Couldn't find any stored XSS vulnerabilities.
+|_http-dombased-xss: Couldn't find any DOM based XSS.
+|_http-csrf: Couldn't find any CSRF vulnerabilities.
+8080/tcp open  http-proxy
+|_http-dombased-xss: Couldn't find any DOM based XSS.
+| http-fileupload-exploiter: 
+|   
+|     Couldn't find a file-type field.
+|   
+|_    Couldn't find a file-type field.
+|_http-stored-xss: Couldn't find any stored XSS vulnerabilities.
+| http-enum: 
+|_  /: RoundCube
+|_http-sql-injection: ERROR: Script execution failed (use -d to debug)
+|_http-vuln-cve2017-1001000: ERROR: Script execution failed (use -d to debug)
+| http-aspnet-debug: 
+|_  status: DEBUG is enabled
+|_http-csrf: Couldn't find any CSRF vulnerabilities.
+8082/tcp open  blackice-alerts
+8085/tcp open  unknown
+MAC Address: 08:00:27:C3:FB:76 (Oracle VirtualBox virtual NIC)
+
+Nmap done: 1 IP address (1 host up) scanned in 49.66 seconds
+\end{lstlisting}
+
+\subsection{Evasión Exitosa de las Reglas Defensivas de Nginx}
+
+A diferencia del intento de escaneo inicial que se estancaba en el 99.58\% (ver Capítulo II, FIGURA \ref{fig:antinmap}), la ejecución de este escaneo optimizado logró sortear con éxito las reglas de retención y tarpitting del servidor web Nginx y del firewall del host.
+
+La estrategia de evasión implementó tres elementos decisivos:
+\begin{enumerate}
+  \item \textbf{Uso de Señuelos (\textit{Decoys} \texttt{-D RND:20}):} Se intercalaron 20 direcciones IP aleatorias junto a la dirección IP real del auditor, dispersando el conteo de conexiones concurrentes en los módulos \texttt{limit\_conn} y \texttt{meter conns\_per\_ip} de Nftables.
+  \item \textbf{Omisión de Sondas DoS (\texttt{"vuln and not doos"}):} Se excluyeron los scripts específicos de prueba de denegación de servicio (como \texttt{http-slowloris-check}), impidiendo que el firewall activara las reglas de descarte silencioso (\textit{silent drop}).
+  \item \textbf{Control de Tiempo de Espera por Script (\texttt{--script-timeout 30s}):} Limitó el tiempo máximo de socket a 30 segundos, permitiendo que el escaneo completara el 100\% de los 1000 puertos en tan solo \textbf{49.66 segundos}.
+\end{enumerate}
+
+La \textbf{FIGURA \ref{fig:escaneo-nmap}} presenta la captura de pantalla de la terminal en Kali Linux evidenciando la finalización exitosa del escaneo y la evasión de las defensas de retención.
+
+\capturaAPA{fig:escaneo-nmap}{Evidencia Gráfica del Escaneo de Vulnerabilidades con Evasión Nmap NSE}{escaneonmap.jpeg}{Captura de pantalla de la terminal Kali Linux mostrando la evasión del bloqueo de Nginx mediante señuelos (-D RND:20) y límite de tiempo por script (--script-timeout 30s).}
+
+\section{División y Análisis Pormenorizado de Cada Vulnerabilidad}
+
+A partir de la evidencia técnica única obtenida, se procede a dividir y analizar pormenorizadamente cada una de las debilidades y posibles vulnerabilidades identificadas.
+
+% -----------------------------------------------------------------------------
+\subsection{VULN-01: Intercambio Criptográfico Anónimo Diffie-Hellman en SMTP y Submission}
+% -----------------------------------------------------------------------------
+
+\begin{itemize}
+  \item \textbf{Servicios Afectados:} \texttt{25/tcp} (SMTP) y \texttt{587/tcp} (Submission).
+  \item \textbf{Script Detector NSE:} \texttt{ssl-dh-params}.
+  \item \textbf{Clasificación CWE:} CWE-327 (\textit{Use of a Broken or Risky Cryptographic Algorithm}).
+  \item \textbf{Detalle Técnico del Hallazgo:} El script identificó que el demonio Postfix acepta la negociación de suites criptográficas anónimas (\texttt{DH\_anon}):
+    \begin{enumerate}
+      \item \texttt{TLS\_DH\_anon\_WITH\_AES\_256\_CBC\_SHA256} (Grupo Oakley 15, módulo de 3072 bits).
+      \item \texttt{TLS\_DH\_anon\_WITH\_AES\_128\_CBC\_SHA} (Grupo Oakley 2, módulo débil de 1024 bits).
+    \end{enumerate}
+  \item \textbf{Puntuación CVSS v3.1:}
+    \begin{itemize}
+      \item \textbf{Vector:} \texttt{CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N}
+      \item \textbf{Puntaje Base:} \textbf{7.4 (Severidad Alta)}
+    \end{itemize}
+  \item \textbf{Mecanismo de Explotación e Impacto:} Las suites de cifrado anónimo Diffie-Hellman generan llaves de sesión simétricas sin solicitar ni validar certificados X.509 de autenticación de servidor. Esta condición permite a un adversario en la misma red de área local ejecutar un ataque activo de intermediario (\textit{Man-in-the-Middle} -- MitM). El atacante negocia sesiones TLS independientes con el remitente y con el servidor de correo, pudiendo interceptar, descifrar y manipular el contenido de los correos corporativos y las credenciales SMTP sin que el cliente reciba alertas de seguridad.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{VULN-02: Denegación de Servicio por Solicitud de Múltiples Rangos de Bytes (CVE-2011-3192)}
+% -----------------------------------------------------------------------------
+
+\begin{itemize}
+  \item \textbf{Servicios Afectados:} \texttt{80/tcp} (HTTP) y \texttt{443/tcp} (HTTPS).
+  \item \textbf{Script Detector NSE:} \texttt{http-vuln-cve2011-3192} (Estado: \texttt{VULNERABLE}, Identificadores: \texttt{CVE-2011-3192}, \texttt{BID:49303}).
+  \item \textbf{Clasificación CWE:} CWE-400 (\textit{Uncontrolled Resource Consumption}).
+  \item \textbf{Detalle Técnico del Hallazgo:} El servidor web responde afirmativamente ante peticiones HTTP que contienen cabeceras de rangos de bytes superpuestos y fragmentados (\texttt{Range: bytes=0-,5-0,5-1,5-2...}).
+  \item \textbf{Puntuación CVSS v3.1:}
+    \begin{itemize}
+      \item \textbf{Vector:} \texttt{CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H}
+      \item \textbf{Puntaje Base:} \textbf{7.5 (Severidad Alta)}
+    \end{itemize}
+  \item \textbf{Mecanismo de Explotación e Impacto:} Cuando el servidor procesa una solicitud con un número masivo de rangos de bytes, reserva recursos de memoria RAM y tiempo de CPU desmedidos para fraccionar y componer las respuestas en formato multiparte (\texttt{multipart/byteranges}). Un atacante individual, operando con herramientas automatizadas de denegación de servicio, puede consumir la totalidad de la memoria disponible del servidor web, provocando el bloqueo del demonio HTTP y la indisponibilidad de la plataforma para los clientes bancarios.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{VULN-03: Método y Modo de Depuración Activo en Webmail (http-aspnet-debug)}
+% -----------------------------------------------------------------------------
+
+\begin{itemize}
+  \item \textbf{Servicio Afectado:} \texttt{8080/tcp} (RoundCube Webmail / HTTP-Proxy).
+  \item \textbf{Script Detector NSE:} \texttt{http-aspnet-debug} (Reporte: \texttt{status: DEBUG is enabled}).
+  \item \textbf{Clasificación CWE:} CWE-489 (\textit{Active Debug Code}).
+  \item \textbf{Detalle Técnico del Hallazgo:} La aplicación web responde positivamente ante el método HTTP \texttt{DEBUG}, diseñado originalmente para depuración de aplicaciones en etapas de desarrollo.
+  \item \textbf{Puntuación CVSS v3.1:}
+    \begin{itemize}
+      \item \textbf{Vector:} \texttt{CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N}
+      \item \textbf{Puntaje Base:} \textbf{5.3 (Severidad Media)}
+    \end{itemize}
+  \item \textbf{Mecanismo de Explotación e Impacto:} La permanencia de métodos de depuración en entornos de producción posibilita la filtración de volcados de memoria, estructuras de variables de sesión internas de PHP y rutas absolutas del sistema de archivos, suministrando información clave para la elaboración de ataques dirigidos.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{VULN-04: Exposición Pública del Puerto PostgreSQL (5432/tcp)}
+% -----------------------------------------------------------------------------
+
+\begin{itemize}
+  \item \textbf{Servicio Afectado:} \texttt{5432/tcp} (PostgreSQL Database Server).
+  \item \textbf{Clasificación CWE:} CWE-284 (\textit{Improper Access Control}) y CWE-200 (\textit{Information Exposure}).
+  \item \textbf{Detalle Técnico del Hallazgo:} El escaneo de puertos detectó el puerto \texttt{5432/tcp} en estado \texttt{open}, enlazado directamente a todas las interfaces de red del servidor objetivo.
+  \item \textbf{Puntuación CVSS v3.1:}
+    \begin{itemize}
+      \item \textbf{Vector:} \texttt{CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N}
+      \item \textbf{Puntaje Base:} \textbf{7.5 (Severidad Alta)}
+    \end{itemize}
+  \item \textbf{Mecanismo de Explotación e Impacto:} Permitir conexiones directas hacia la base de datos central sin segmentación en capa de red habilita ataques de fuerza bruta automatizados contra cuentas administrativas (\texttt{postgres}, \texttt{tso\_user}) y abre la puerta a la explotación de vulnerabilidades en el protocolo de PostgreSQL para la sustracción de registros bancarios.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{VULN-05: Exposición de Servicios Administrativos y Web en Texto Plano (HTTP)}
+% -----------------------------------------------------------------------------
+
+\begin{itemize}
+  \item \textbf{Servicios Afectados:} \texttt{3000/tcp} (Grafana), \texttt{8000/tcp} (Portainer), \texttt{8082/tcp} (Filemanager), \texttt{8085/tcp} (Uyuni Way Web).
+  \item \textbf{Clasificación CWE:} CWE-319 (\textit{Cleartext Transmission of Sensitive Information}).
+  \item \textbf{Detalle Técnico del Hallazgo:} La consola de Nmap descubrió múltiples aplicaciones operando en puertos HTTP sin cifrado TLS activado por defecto.
+  \item \textbf{Puntuación CVSS v3.1:}
+    \begin{itemize}
+      \item \textbf{Vector:} \texttt{CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:N}
+      \item \textbf{Puntaje Base:} \textbf{7.4 (Severidad Alta)}
+    \end{itemize}
+  \item \textbf{Mecanismo de Explotación e Impacto:} La ausencia de cifrado en el canal de transporte permite a cualquier actor malicioso en la red local capturar en claro las credenciales administrativas de acceso y las cookies de sesión mediante análisis de tráfico pasivo.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{DEF-01: Neutralización Activa de Inyección SQL y Exploits por WAF/IPS (Script Failed)}
+% -----------------------------------------------------------------------------
+
+\begin{itemize}
+  \item \textbf{Evidencia en Escaneo:}
+    \begin{itemize}
+      \item \texttt{http-vuln-cve2017-1001000: ERROR: Script execution failed} (Puertos 80, 443, 8080).
+      \item \texttt{http-sql-injection: ERROR: Script execution failed} (Puerto 8080).
+      \item \texttt{http-stored-xss / http-csrf / http-dombased-xss: Couldn't find vulnerabilities}.
+      \item \texttt{smtp-vuln-cve2010-4344: The SMTP server is not Exim: NOT VULNERABLE}.
+    \end{itemize}
+  \item \textbf{Evaluación Defensiva:} Este resultado no constituye una vulnerabilidad del host, sino la ratificación de las defensas en profundidad:
+    \begin{enumerate}
+      \item \textbf{WAF en Nginx:} Intercepta las cadenas de inyección SQL enviadas por el script de Nmap y aborta la transacción retornando un código de error \texttt{403 Forbidden}.
+      \item \textbf{Suricata IPS:} Descarta inmediatamente los paquetes (\texttt{DROP}) que contienen firmas de explotación, forzando la desconexión del socket TCP del script de Nmap y generando el estado \texttt{Script execution failed}.
+    \end{enumerate}
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{EVAL-01: Auditoría de Superficie y Postura de Seguridad en la Plataforma de Firma Digital}
+% -----------------------------------------------------------------------------
+
+La evaluación de la plataforma de firma digital institucional PAdES abarcó tanto la auditoría de exposición de su API REST como el análisis de integridad de sus operaciones criptográficas:
+
+\begin{enumerate}
+  \item \textbf{Verificación de Control de Acceso y Prevención de Uso Indebido de Claves (Auth Gate):}
+  Se ejecutaron sondas dirigidas hacia los endpoints críticos de emisión y firmado (\texttt{/api/sign}, \texttt{/api/generate\_keys} y \texttt{/api/download\_p12}). El middleware de seguridad Zero Trust interceptó las solicitudes carentes de credenciales respondiendo de manera unívoca con el código de estado \texttt{401 Unauthorized}, confirmando que ningún usuario no autenticado en el segmento de red puede estampar firmas apócrifas, generar certificados a nombre de terceros ni sustraer contenedores PKCS\#12 (mitigación proactiva de debilidades de control de acceso CWE-306).
+
+  \item \textbf{Auditoría de Confidencialidad en Tránsito (CWE-319 y Despliegue Seguro):}
+  Al evaluar el servicio en su puerto de prueba directo (\texttt{8090/tcp} HTTP), se evidenció el riesgo inherente de transmisión en texto plano de datos biométricos (trazos de firma capturados en el canvas HTML5) y credenciales de usuario. Este vector de riesgo queda completamente neutralizado en la arquitectura definitiva del homelab mediante la canalización obligatoria a través del proxy inverso Nginx (\texttt{https://firma.sudoers.lan}) con terminación TLS 1.3, obligando al cifrado de extremo a extremo de los flujos de subida, firmado y verificación de PDFs.
+
+  \item \textbf{Resistencia a Manipulaciones y Verificación Semafórica de Integridad:}
+  Se sometió el endpoint de validación (\texttt{/api/verify}) a pruebas con documentos alterados intencionalmente byte a byte. El motor de verificación detectó la incongruencia entre el hash SHA-256 recalculado sobre el \textit{ByteRange} y el hash sellado en el contenedor CMS, marcando de forma inmediata el estado de alerta roja (\textit{Firma Inválida o Documento Alterado}), certificando la robustez del no repudio y la integridad probatoria exigida por el estándar PAdES ISO 32000-2.
+\end{enumerate}

@@ -1,0 +1,178 @@
+% ============================================================================
+%  CAPÍTULO II: METODOLOGÍA Y EVIDENCIAS DE AUDITORÍA
+% ============================================================================
+
+\section{Metodología de Evaluación y Procedimiento Técnico}
+
+La auditoría de seguridad sobre la infraestructura del servidor se ejecutó bajo una metodología estructurada de evaluación de caja gris (\textit{Gray-Box}), organizada en tres fases operativas complementarias:
+
+\begin{enumerate}
+  \item \textbf{Exploración Perimetral y Evasión Táctica:} Identificación de puertos y servicios mediante Nmap, implementando técnicas de evasión de retención (\textit{tarpitting}) y dispersión con señuelos aleatorios (\textit{Decoy Scanning}) para sortear los controles preventivos del cortafuegos y del servidor web.
+  \item \textbf{Auditoría Dinámica de Aplicaciones Web (DAST):} Análisis automatizado en vivo mediante OWASP ZAP sobre los servicios web expuestos, verificando la robustez de cabeceras de respuesta, métodos HTTP permitidos y posibles vectores de inyección o divulgación de información.
+  \item \textbf{Vigilancia de Tráfico y Telemetría Defensiva:} Supervisión en tiempo real del tráfico generado mediante el motor IDS/IPS Suricata y la consola de gestión de eventos EveBox, evaluando la capacidad de detección y respuesta perimetral del sistema ante sondas de evaluación.
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\section{Reglas de Detección y Prevención Configuradas en Suricata IDS/IPS}
+% -----------------------------------------------------------------------------
+
+La infraestructura del servidor corporativo cuenta con una implementación nativa del motor de seguridad Suricata v7.0, gobernada por un conjunto de reglas locales personalizadas (\texttt{homelab.rules}, identificadores locales SID 9000001--9000999). Estas firmas operan bajo un esquema dual que combina la detección pasiva sin bloqueo (\textit{alert}) con la prevención activa en línea (\textit{drop}) mediante la vinculación con las colas \texttt{NFQUEUE} del cortafuegos \texttt{nftables}.
+
+A continuación, se detalla la totalidad de las reglas establecidas en el proyecto, clasificadas según su mecanismo de operación.
+
+\subsection{Reglas de Detección Pasiva (Modo IDS -- Acción ALERT)}
+
+Las \textbf{TABLAS \ref{tab:reglas-suricata-ids-1}} y \textbf{\ref{tab:reglas-suricata-ids-2}} exponen las reglas orientadas a la vigilancia, auditoría y detección no intrusiva de escaneos, sondeos de servicios de directorio, aplicaciones web y tráfico anómalo.
+
+\begin{table}[H]
+\centering
+\caption{Reglas de Detección e Inspección Pasiva en Suricata (Modo IDS -- Parte 1)}
+\label{tab:reglas-suricata-ids-1}
+\contenidoConFuente{%
+  \begin{tablaAPA}
+  \begin{tabular}{C{1.6cm}L{3.6cm}L{5.0cm}L{4.8cm}}
+  \toprule
+  \textbf{SID} & \textbf{Nombre de la Regla} & \textbf{Condición de Activación} & \textbf{Qué Evita / Mitigación} \\
+  \midrule
+  \textbf{9000010} & Sonda de Prueba Genérica & Paquete TCP con carga \texttt{TEST\_PROBE\_ALERT\_ONLY} & Valida el funcionamiento del motor de telemetría sin descartar tráfico. \\
+  \textbf{9000011} & Ping ICMP Echo Request & Paquete ICMP tipo 8 (\textit{Echo Request}) dirigido al host & Registra intentos de descubrimiento de hosts activos en la subred LAN. \\
+  \textbf{9000020} & Escaneo TCP NULL Scan & Paquete TCP sin banderas de control activas (\texttt{flags:0}) & Detecta técnicas de sondeo sigiloso de Nmap orientadas a evadir firewalls. \\
+  \textbf{9000021} & Escaneo TCP XMAS Scan & Paquete TCP con banderas FIN, PSH y URG activas simultáneamente & Identifica barridos de puertos de bajo perfil basados en anomalías TCP. \\
+  \textbf{9000022} & Ráfaga de Puertos SYN & Más de 25 paquetes TCP SYN desde una misma IP en 3 segundos & Alerta sobre barridos rápidos de puertos y conatos de ataques SYN Flood. \\
+  \textbf{9000030} & Sondeo Kerberos (AD DC) & Más de 15 solicitudes SYN al puerto 88 en 5 segundos & Detecta ataques de fuerza bruta y enumeración de tickets en el controlador de dominio. \\
+  \textbf{9000031} & Enumeración LDAP (AD DC) & Más de 20 solicitudes SYN al puerto 389 en 5 segundos & Alerta sobre intentos de extracción no autorizada de cuentas y grupos corporativos. \\
+  \textbf{9000032} & Sondeo SMB / CIFS & Más de 20 solicitudes SYN al puerto 445 en 10 segundos & Detecta escaneos masivos contra carpetas compartidas y servicios de archivo. \\
+  \textbf{9000040} & Conexión SSH Entrante & Paquete TCP SYN entrante dirigido al puerto 22/tcp & Audita aperturas de sesión por terminal remota en el servidor. \\
+  \textbf{9000041} & Fuerza Bruta SSH & Más de 6 conexiones SYN dirigidas al puerto 22 en 30 segundos & Alerta tempranamente sobre ataques automatizados de adivinación de credenciales SSH. \\
+  \bottomrule
+  \end{tabular}
+  \end{tablaAPA}%
+}{Elaboración propia a partir del archivo de reglas \texttt{server/suricata/rules/homelab.rules}.}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Reglas de Detección e Inspección Pasiva en Suricata (Modo IDS -- Parte 2)}
+\label{tab:reglas-suricata-ids-2}
+\contenidoConFuente{%
+  \begin{tablaAPA}
+  \begin{tabular}{C{1.6cm}L{3.6cm}L{5.0cm}L{4.8cm}}
+  \toprule
+  \textbf{SID} & \textbf{Nombre de la Regla} & \textbf{Condición de Activación} & \textbf{Qué Evita / Mitigación} \\
+  \midrule
+  \textbf{9000050} & Inyección SQL (UNION SELECT) & Solicitud HTTP que contiene las palabras clave \texttt{UNION} y \texttt{SELECT} & Detecta intentos de consulta no autorizada y exfiltración de bases de datos. \\
+  \textbf{9000051} & Path Traversal /etc/passwd & Petición HTTP que solicita la ruta del archivo crítico \texttt{/etc/passwd} & Detecta intentos de lectura no autorizada de cuentas y configuración local. \\
+  \textbf{9000052} & Explotación Log4Shell & Petición HTTP que contiene la secuencia maliciosa \texttt{\$\{jndi:} & Detecta vectores RCE dirigidos contra la vulnerabilidad crítica Apache Log4j. \\
+  \textbf{9000060} & Escáner OpenVAS/Greenbone & Cabecera HTTP \textit{User-Agent} identificada como \texttt{OpenVAS} & Detecta el inicio de auditorías perimetrales automatizadas por terceros. \\
+  \textbf{9000061} & Escáner Nikto Web & Cabecera HTTP \textit{User-Agent} conteniendo la firma \texttt{Nikto} & Identifica sondeos agresivos de vulnerabilidades sobre aplicaciones web. \\
+  \textbf{9000062} & Escáner Nmap NSE HTTP & Cabecera HTTP \textit{User-Agent} identificada con la firma \texttt{Nmap} & Alerta sobre la ejecución de scripts ofensivos NSE contra puertos web. \\
+  \textbf{9000063} & Herramienta Sqlmap & Cabecera HTTP \textit{User-Agent} conteniendo el identificador \texttt{sqlmap} & Detecta herramientas automáticas de explotación de inyecciones SQL. \\
+  \textbf{9000101} & DLP Fuga Tarjeta Visa & Tráfico HTTP saliente con secuencia de 13 a 16 dígitos de tarjeta Visa & Previene y audita la fuga de números de tarjetas en texto claro (PCI-DSS). \\
+  \bottomrule
+  \end{tabular}
+  \end{tablaAPA}%
+}{Elaboración propia a partir del archivo de reglas \texttt{server/suricata/rules/homelab.rules}.}
+\end{table}
+
+\subsection{Reglas de Prevención Activa en Línea (Modo IPS -- Acción DROP)}
+
+La \textbf{TABLA \ref{tab:reglas-suricata-ips}} detalla las firmas que operan con descarte inmediato de paquetes (\textit{drop}) en tiempo real cuando el motor se encuentra acoplado a la infraestructura del cortafuegos.
+
+\begin{table}[H]
+\centering
+\caption{Reglas de Prevención Activa y Bloqueo en Línea en Suricata (Modo IPS)}
+\label{tab:reglas-suricata-ips}
+\contenidoConFuente{%
+  \begin{tablaAPA}
+  \begin{tabular}{C{1.6cm}L{3.6cm}L{5.0cm}L{4.8cm}}
+  \toprule
+  \textbf{SID} & \textbf{Nombre de la Regla} & \textbf{Condición de Activación} & \textbf{Qué Evita / Mitigación} \\
+  \midrule
+  \textbf{9000001} & Bloqueo de Carga Maliciosa & Paquete TCP con carga maliciosa \texttt{TEST\_EXPLOIT\_PAYLOAD\_DROP} & Descarta el paquete en tiempo real evitando la ejecución de exploits en memoria. \\
+  \textbf{9000002} & Bloqueo de Ataque Web & Petición HTTP con carga maliciosa \texttt{MALICIOUS\_SIMULATION\_ATTACK} & Descarta de inmediato la conexión HTTP protegiendo los contenedores web. \\
+  \textbf{9000070} & Bloqueo IPS Inyección SQL & Petición HTTP con cadenas \texttt{UNION} y \texttt{SELECT} en modo en línea & Descarta el flujo TCP anulando la consulta maliciosa antes de llegar a la base de datos. \\
+  \textbf{9000071} & Bloqueo Directory Traversal & Petición HTTP dirigida a \texttt{/etc/passwd} en modo en línea & Bloquea el paquete impidiendo la fuga del archivo de usuarios del host. \\
+  \textbf{9000072} & Bloqueo Path Traversal ../ & Petición HTTP que incluye secuencias de escape de directorio \texttt{../../} & Neutraliza intentos de escape del directorio raíz de la aplicación web. \\
+  \textbf{9000102} & Bypass Auth SQLi en Banca & Petición HTTP conteniendo el patrón de bypass \texttt{' OR '1'='1} & Bloquea el salto de autenticación en formularios de inicio de sesión bancarios. \\
+  \textbf{9000103} & Robo de Sesión / XSS Banca & Carga HTTP conteniendo la instrucción de acceso \texttt{document.cookie} & Bloquea la exfiltración de cookies y el secuestro de sesiones en el portal financiero. \\
+  \textbf{9000104} & Bloqueo Burp Suite en Banca & Cabecera HTTP \textit{User-Agent} conteniendo la firma \texttt{Burp} & Bloquea el tráfico generado por suites de interceptación en transacciones bancarias. \\
+  \textbf{9000105} & Barrido Masivo DoS de Puertos & Ráfaga superior a 30 paquetes SYN por IP en 3 segundos & Descarta conexiones agresivas mitigando el agotamiento de sockets y caída del host. \\
+  \bottomrule
+  \end{tabular}
+  \end{tablaAPA}%
+}{Elaboración propia a partir del archivo de reglas \texttt{server/suricata/rules/homelab.rules}.}
+\end{table}
+
+\section{Evidencias de la Auditoría Dinámica Web y Monitoreo Defensivo}
+% -----------------------------------------------------------------------------
+
+En esta sección se incorporan las evidencias gráficas obtenidas durante las pruebas con las herramientas analizadas.
+
+\subsection{Auditoría de Aplicaciones Web con OWASP ZAP}
+
+Se ejecutó un escaneo dinámico en vivo mediante OWASP ZAP sobre la aplicación web independiente \textbf{Uyuni Way Web}, desplegada en el puerto \texttt{8085/tcp} del servidor objetivo.
+
+La \textbf{FIGURA \ref{fig:escaneo-zaproxy}} muestra la ejecución del escaneo en vivo de ZAP sobre el puerto 8085, mientras que la \textbf{FIGURA \ref{fig:alerta-naranja-zap}} expone la matriz de alertas de severidad media (color naranja) descubiertas durante la auditoría.
+
+\capturaAPA{fig:escaneo-zaproxy}{Escaneo Dinámico en Vivo con OWASP ZAP sobre Uyuni Way Web (Puerto 8085)}{escaneozaproxy.jpeg}{Captura de pantalla de la interfaz de OWASP ZAP ejecutando el escaneo activo contra el servicio en el puerto 8085.}
+
+\capturaAPA{fig:alerta-naranja-zap}{Alertas de Nivel Medio (Color Naranja) Detectadas por OWASP ZAP}{alertanaranja.jpeg}{Reporte de vulnerabilidades de severidad media generadas por ZAP durante el escaneo sobre Uyuni Way Web.}
+
+\subsection{Supervisión de Amenazas en Tiempo Real con EveBox}
+
+La interacción de las herramientas ofensivas contra la infraestructura del host auditado fue capturada por el sensor Suricata y visualizada en la consola web EveBox.
+
+La \textbf{FIGURA \ref{fig:evebox-alertas}} ilustra el panel de eventos de seguridad en tiempo real generado por EveBox en el puerto \texttt{5636/tcp}, confirmando la detección del tráfico anómalo generado durante las pruebas.
+
+\capturaAPA{fig:evebox-alertas}{Panel de Eventos y Alertas de Seguridad en Tiempo Real en EveBox}{evebox.jpeg}{Consola gráfica de EveBox visualizando las alertas de intrusión y escaneo registradas por Suricata.}
+
+\subsection{Comportamiento Defensivo del Servidor ante Escaneos Agresivos (Anti-Nmap)}
+
+Durante las fases iniciales de auditoría, se ejecutó el comando estándar de escaneo de vulnerabilidades:
+\begin{lstlisting}[style=terminal, caption={Comando Agresivo Inicial de Nmap}, label={lst:cmd-agresivo}]
+sudo nmap -sV --script vuln 192.168.100.85
+\end{lstlisting}
+
+Dicho escaneo experimentó una retención prolongada estancándose en el \textbf{99.58\%} de ejecución debido a la acción defensiva del servidor web Nginx y del cortafuegos del host. Al detectar ráfagas agresivas de sockets lentos (asociadas a scripts DoS como Slowloris), las reglas del servidor aplicaron descartes silenciosos (\textit{silent drops}), obligando a Nmap a esperar indefinidamente por retransmisiones TCP.
+
+La \textbf{FIGURA \ref{fig:antinmap}} evidencia este fenómeno de tarpitting defensivo registrado en la terminal del auditor.
+
+\capturaAPA{fig:antinmap}{Estancamiento de Nmap NSE al 99.58\% por Efecto Tarpitting Defensivo en Nginx}{antinmap.jpeg}{Captura de pantalla de la terminal en Kali Linux evidenciando el bloqueo del escaneo agresivo de Nmap.}
+
+\subsection{Plataforma Institucional de Firma Digital y Validación Criptográfica (PAdES)}
+
+Dentro del catálogo de servicios web corporativos evaluados en la infraestructura se integró la \textbf{Plataforma de Firma Digital Institucional PAdES} (\textit{PDF Advanced Electronic Signatures}). En el entorno homelab de producción, este servicio se ejecuta de forma contenerizada bajo Docker (\texttt{tso-firma}, escuchando internamente en el puerto \texttt{5000/tcp} en la red bridge \texttt{tso-net}) y se publica a través del proxy inverso Nginx bajo el nombre de dominio \texttt{https://firma.sudoers.lan} con terminación TLS segura y resolución DNS provista por el Samba Active Directory DC (\texttt{192.168.0.2}). Para propósitos de pruebas directas y auditoría en escenarios de laboratorio portable, el servicio se expone alternativamente en el puerto \texttt{8090/tcp}.
+
+La aplicación está implementada mediante una arquitectura moderna desacoplada (\textbf{Frontend reactivo en Astro 5} y \textbf{Backend criptográfico en Python/FastAPI}). La \textbf{FIGURA \ref{fig:firma-digital}} presenta la pantalla de acceso principal de la plataforma protegida por directivas de seguridad perimetral.
+
+\capturaAPA{fig:firma-digital}{Interfaz de Autenticación y Acceso Seguro a la Plataforma de Firma Digital}{firmadigital.jpeg}{Portal institucional con política Zero Trust (Auth Gate) para la emisión de certificados X.509 y validación PAdES.}
+
+\subsubsection{Mecanismos de Operación y Funcionamiento Criptográfico}
+
+La aplicación fue desarrollada específicamente para proveer autenticación de identidad, emisión automatizada de certificados y validación criptográfica de documentos digitales conforme a la norma internacional \textbf{ISO 32000-2} y normativas de firma electrónica. Su funcionamiento interno se articula a través de los siguientes componentes clave:
+
+\begin{enumerate}
+  \item \textbf{Control de Acceso Estricto y Middleware Zero Trust (Auth Gate):} Como se aprecia en la captura de pantalla, la plataforma implementa una barrera de seguridad (\textit{Auth Gate}) que restringe de forma tajante el acceso anónimo. El backend ejecuta un middleware de interceptación (\texttt{auth\_security\_middleware}) que responde con \texttt{401 Unauthorized} ante solicitudes no autenticadas, impidiendo que usuarios no validados emitan certificados, firmen documentos o inspeccionen registros de auditoría.
+  
+  \item \textbf{Infraestructura de Clave Pública (PKI) y Autoridad Certificadora Raíz:} El backend cuenta con una Autoridad Certificadora interna (\textbf{CA Raíz UPDS}) dotada de un par de llaves asimétricas \textbf{RSA de 4096 bits}. Durante el registro del usuario institucional, el sistema emite de manera desatendida un certificado digital \textbf{X.509 v3} (RSA de 2048 bits con resumen SHA-256) incorporando atributos de identidad institucional (\textit{Distinguished Name}).
+  
+  \item \textbf{Custodia Segura de Claves Privadas en Reposo:} Las claves criptográficas privadas de los usuarios se almacenan en una base de datos relacional SQLite (\texttt{app.db}) cifradas mediante el esquema simétrico autenticado \textbf{Fernet} (\textbf{AES-128-CBC} acoplado con \textbf{HMAC-SHA256}), custodiado por una llave maestra protegida a nivel del sistema operativo (\texttt{0600}). Para respaldo local del firmante, la plataforma permite exportar el almacén portable \textbf{PKCS\#12} (\texttt{.p12}) protegido por contraseña individual.
+  
+  \item \textbf{Firma Digital Avanzada de Documentos (PAdES ISO 32000-2):} Para estampar la firma sobre un documento PDF, el motor criptográfico (\texttt{endesive} y \texttt{cryptography}):
+  \begin{itemize}
+    \item Extrae el contenido en bytes del archivo excluyendo la sección reservada de firma (\textit{ByteRange}).
+    \item Calcula el hash seguro mediante el algoritmo \textbf{SHA-256}.
+    \item Cifra el hash empleando la clave privada RSA del usuario firmante.
+    \item Empaqueta la estructura en un contenedor criptográfico CMS (\textit{SignedData}), inyectando el certificado X.509 del firmante y la cadena de la CA Raíz.
+    \item Inserta la firma mediante actualización incremental (\textit{Incremental Update}), garantizando que la estructura del PDF original no se modifique ni invalide firmas previas. Soporta tanto firma invisible como firma visible con rúbrica táctil capturada en un \textit{canvas} HTML5.
+  \end{itemize}
+  
+  \item \textbf{Diagnóstico y Validación Criptográfica en Tres Niveles:} El módulo de validación (\texttt{/api/verify}) somete el documento a una verificación semafórica exhaustiva:
+  \begin{enumerate}[label=\alph*)]
+    \item \textbf{Integridad del Documento:} Comprobación matemática del rango de bytes y recomputación del hash SHA-256 para constatar que el PDF no sufrió alteraciones posteriores a la firma.
+    \item \textbf{Autenticidad de la Firma:} Verificación de la firma digital RSA contra la clave pública del certificado incrustado.
+    \item \textbf{Cadena de Confianza:} Validación de la firma del certificado contra la CA Raíz emisora y verificación del periodo de validez temporal.
+  \end{enumerate}
+  
+  \item \textbf{Bitácora Inmutable y No Repudio:} Cada documento procesado registra en la base de datos la identificación del firmante, la marca temporal del servidor y el \textbf{hash SHA-256 original}, consolidando una pista de auditoría técnica que satisface los principios de no repudio e integridad probatoria.
+\end{enumerate}

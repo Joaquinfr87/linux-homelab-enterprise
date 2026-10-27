@@ -10,6 +10,7 @@ services/web/tls/
 
 # Logs locales
 *.log
+IT_INSTALL_SUMMARY.txt
 
 # Sistema
 .DS_Store

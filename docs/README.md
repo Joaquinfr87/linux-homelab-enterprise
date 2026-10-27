@@ -8,8 +8,12 @@ acceso rápido; **toda la documentación vive acá** (`docs/`).
 | Documento | Contenido |
 | --- | --- |
 | [`arquitectura.md`](arquitectura.md) | **Diseño completo de la infraestructura**: visión, principios, red/IP, servicios, identidad, archivos, correo, proxy, DB, seguridad, backups, plan por fases y limitaciones. Es el documento central. |
+| [`auditoria-vulnerabilidades.md`](auditoria-vulnerabilidades.md) | **Auditoría de Vulnerabilidades y Arsenal Defensivo**: Escaneo Nmap NSE, OWASP ZAP, Suricata IDS/IPS, EveBox y plataforma de firma digital PAdES. |
+| [`ids-ips.md`](ids-ips.md) | **Guía Técnica de IDS/IPS (Suricata)**: Modos pasivo vs en línea (NFQUEUE), reglas perimetrales y pruebas. |
+| [`guia-uso-servicios.md`](guia-uso-servicios.md) | **Guía de Uso de Servicios**: Accesos, puertos y credenciales de los servicios web e infraestructura. |
 | [`presentacion.md`](presentacion.md) | Guion de **pruebas en vivo de Samba** para la exposición (server vs cliente, comandos y justificación por etapa). |
 | [`guia-demo-cliente.md`](guia-demo-cliente.md) | Secuencia de comandos **del lado cliente** para la presentación: DNS, descubrimiento, `getent`, Kerberos, SMB, DHCP + equivalencias Windows y troubleshooting. |
+| [`latex/escaneo-vulnerabilidades/`](latex/escaneo-vulnerabilidades/) | **Informe Académico en LaTeX**: Detección y vigilancia de vulnerabilidades, evidencias, mitigación y plataforma de firma digital (57 págs, `main.pdf`). |
 
 ## Fuera de `docs/` (código y contexto)
 

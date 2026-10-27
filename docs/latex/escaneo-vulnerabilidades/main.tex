@@ -1,0 +1,96 @@
+% ============================================================================
+%  DOCUMENTO PRINCIPAL — Informe Final: Vulnerabilidades Encontradas (Escaneo)
+%  ----------------------------------------------------------------------------
+%  Estructura modular institucional (UPDS - Seguridad Informática)
+%  Regla de oro del proyecto:
+%    - formato/preambulo.sty         -> Configuración completa (APA 7 + Arial)
+%    - formato/datos-institucion.sty -> Datos institucionales compartidos
+%    - formato/portada.tex           -> Portada institucional
+%    - formato/referencias.bib       -> Bibliografía BibTeX
+%    - contenido/*.tex               -> Contenido modular del informe
+%
+%  Para compilar (desde docs/latex/escaneo-vulnerabilidades/):
+%    make
+% ============================================================================
+
+\documentclass[12pt,a4paper]{article}
+
+\usepackage{formato/preambulo}
+\usepackage{formato/datos-institucion}
+
+% ============================================================================
+%  DATOS DEL DOCUMENTO
+% ============================================================================
+\newcommand{\tituloDocumento}{Detección y Vigilancia de Vulnerabilidades en Servidor Corporativo}
+\newcommand{\equipo}{Grupo 1 Sudoers}
+\newcommand{\integrantes}{%
+  Joaquin Alessandro Felipez Rojas \par
+  Nicolas Sebastian Reguerin Meneses \par
+  David Willy Cruz Huanca}
+\newcommand{\asignatura}{Seguridad Inform\'atica}
+\newcommand{\docente}{Jose Abraham Mita Huanca}
+\newcommand{\fechaEntrega}{27/10/2026}
+
+\begin{document}
+
+% --- Numeración preliminar romana ---
+\pagenumbering{roman}
+\input{formato/portada}
+
+% --- Índices de contenido, tablas y figuras ---
+\newpage
+{\indicesCompactos\tableofcontents}
+\newpage
+{\indicesCompactos\listoftables}
+\newpage
+{\indicesCompactos\listoffigures}
+\clearpage
+
+% --- Numeración arábiga para el cuerpo principal ---
+\pagenumbering{arabic}
+
+% ============================================================================
+%  CONTENIDO MODULAR
+% ============================================================================
+
+% --- CAPÍTULO I --------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO I}{ENTORNO DE PRUEBAS, OBJETIVOS Y MARCO TE\'ORICO}
+\input{contenido/01-entorno-pruebas}
+
+% --- CAPÍTULO II -------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO II}{METODOLOG\'IA Y EVIDENCIAS DE AUDITOR\'IA}
+\input{contenido/02-herramientas}
+
+% --- CAPÍTULO III ------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO III}{HALLAZGOS Y AN\'ALISIS DE VULNERABILIDADES}
+\input{contenido/03-hallazgos}
+
+% --- CAPÍTULO IV -------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO IV}{MEDIDAS DE MITIGACI\'ON Y ENDURECIMIENTO T\'ECNICO}
+\input{contenido/04-mitigacion}
+
+% --- CONCLUSIONES ------------------------------------------------------------
+\newpage
+\encabezadoCapitulo{CONCLUSIONES}{}
+\addcontentsline{toc}{part}{CONCLUSIONES}
+\begingroup
+\setcounter{capitulo}{5}
+\setcounter{section}{0}
+\renewcommand{\thesection}{5.}
+\renewcommand{\theHsection}{5.}
+\renewcommand{\thesubsection}{5.\arabic{subsection}}
+\renewcommand{\theHsubsection}{5.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{5.\arabic{subsection}.\arabic{subsubsection}}
+\renewcommand{\theHsubsubsection}{5.\arabic{subsection}.\arabic{subsubsection}}
+\input{contenido/05-conclusiones}
+\endgroup
+
+% --- Referencias bibliográficas (APA 7) --------------------------------------
+\newpage
+\encabezadoCapitulo{REFERENCIAS}{}
+\addcontentsline{toc}{part}{REFERENCIAS}
+\bibliographystyle{apacite}
+\nocite{*}
+\bibliography{formato/referencias}
+
+\end{document}

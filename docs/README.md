@@ -4,7 +4,10 @@ Bienvenido al índice de documentación del proyecto. A continuación se listan 
 
 ---
 
-## 1. Guías de Operación y Uso
+## 1. Guías de Operación y Arquitectura
+
+* **[`arquitectura.md`](arquitectura.md)**:
+  **Diseño Integral de la Infraestructura IT.** Visión general, principios de ingeniería, plan de direccionamiento IP/DNS/DHCP, Active Directory nativo con Samba 4, servicios contenerizados, esquemas de seguridad perimetral y plan de fases de implementación.
 
 * **[`guia-uso-servicios.md`](guia-uso-servicios.md)**:
   **Guía Maestra de Uso de Servicios.** Explica paso a paso cómo utilizar cada servicio de la red: portal web, cuentas de Active Directory, carpetas compartidas SMB, webmail, gestor de archivos, impresión CUPS, conexión WiFi 802.1X, paneles de monitoreo (Zabbix y Grafana), y administración del IDS/IPS Suricata.
@@ -32,3 +35,9 @@ Bienvenido al índice de documentación del proyecto. A continuación se listan 
   Módulo nativo de Suricata para inspección pasiva (IDS) o bloqueo en línea (IPS).
 * **[`../services/snort/`](../services/snort/)**:
   Módulo de laboratorio y referencia de Snort 3 para comparativas técnicas.
+
+---
+
+## 4. Documentos Académicos e Informes en LaTeX
+
+Los informes académicos formales, reportes de auditoría de vulnerabilidades y fuentes en LaTeX (con sus PDFs compilados) se gestionan y versionan de forma dedicada en la **rama `docs`** del repositorio (`git checkout docs`), manteniendo la rama `main` limpia y enfocada en el código, servicios e infraestructura operativa.

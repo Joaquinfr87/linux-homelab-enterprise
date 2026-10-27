@@ -1,0 +1,16 @@
+[Unit]
+Description=Arranque y Verificacion de Infraestructura IT (TSO-II dc1)
+Documentation=https://github.com/joaquin/linux-homelab-enterprise
+After=network.target network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/tso-start
+TimeoutStartSec=180
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

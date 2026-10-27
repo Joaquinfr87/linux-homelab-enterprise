@@ -595,6 +595,11 @@ for svc in samba-ad-dc chrony nftables freeradius; do
         check_status "$svc" "FAIL"
     fi
 done
+if systemctl is-enabled --quiet tso-it-startup.service 2>/dev/null; then
+    check_status "tso-it-startup (Auto-boot)" "OK"
+else
+    check_status "tso-it-startup (Auto-boot)" "FAIL"
+fi
 if [[ $SKIP_IDS -eq 0 ]]; then
     if systemctl is-active --quiet suricata 2>/dev/null; then
         check_status "suricata (IDS/IPS)" "OK"
@@ -605,7 +610,7 @@ fi
 
 info "Contenedores Docker:"
 if [[ $CHECK_ONLY -eq 0 ]]; then
-    CONTAINERS=(tso-dhcp tso-web tso-mail tso-webmail tso-files tso-db tso-print tso-portainer tso-grafana tso-prometheus tso-alertmanager)
+    CONTAINERS=(tso-dhcp tso-web tso-mail tso-webmail tso-files tso-firma tso-db tso-print tso-portainer tso-grafana tso-prometheus tso-alertmanager)
     for c in "${CONTAINERS[@]}"; do
         if docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | grep -q "^$c Up"; then
             check_status "$c" "OK"
@@ -701,6 +706,7 @@ Estado global        : $OVERALL_STATUS
  • Portal Intranet    : https://dc1.sudoers.lan
  • Webmail Roundcube  : https://webmail.sudoers.lan
  • Archivos (Web)     : https://archivos.sudoers.lan  (Shares: /srv/samba/)
+ • Firma Digital PAdES: https://firma.sudoers.lan
  • Impresión (CUPS)   : https://print.sudoers.lan
  • Grafana Dashboard : https://grafana.sudoers.lan
  • Portainer (Docker) : https://portainer.sudoers.lan:9443

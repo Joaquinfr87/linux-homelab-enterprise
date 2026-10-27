@@ -9,6 +9,8 @@ se aplica desde el repo; nadie toca el server a mano.
 ```text
 server/
 ├── README.md        ← este archivo
+├── start-it.sh      ← orquestador de arranque, autorrecuperación y diagnóstico al boot
+├── tso-it-startup.service ← servicio systemd para iniciar la infraestructura en el boot
 ├── bootstrap.sh     ← deja dc1 operativo de punta a punta (idempotente)
 ├── set-ip.sh        ← fija la IP de dc1 (192.168.0.2) con rollback automático
 ├── gen-env.sh       ← crea/completa .env con secretos aleatorios
@@ -83,6 +85,30 @@ sudo nft flush table inet filter && sudo nft -f /etc/nftables.conf   # firewall
 sudo cp /etc/ssh/sshd_config.bak.<ts> /etc/ssh/sshd_config && sudo systemctl restart ssh
 sudo cp /etc/chrony/chrony.conf.bak.<ts> /etc/chrony/chrony.conf && sudo systemctl restart chrony
 ```
+
+## Arranque y Recuperación Automática en el Boot (`start-it.sh`)
+
+Al reiniciar el servidor físico, pueden surgir problemas de orden (la red física tarda en levantar, Samba colisiona con smbd/nmbd huérfanos, Kea DHCP falla al enlazar el socket antes de tener IP, o nftables rompe las cadenas NAT de Docker).
+
+Para orquestar el inicio correcto y diagnosticar cualquier falla:
+
+```bash
+# Iniciar y diagnosticar todo manualmente
+sudo bash server/start-it.sh          # o sudo bash start-it.sh
+
+# Solo diagnóstico (sin reiniciar nada)
+sudo bash server/start-it.sh --check
+
+# Habilitar para que corra SIEMPRE de forma automática en cada inicio del sistema
+sudo bash server/start-it.sh --install-service
+```
+
+Una vez instalado el servicio:
+- Se ejecuta automáticamente tras `network-online.target` y `docker.service`.
+- Guarda el log completo en `/var/log/tso-startup.log`.
+- Guarda el último reporte resumen en `/var/log/tso-startup-summary.txt`.
+- Registra logs en systemd consultables con: `journalctl -u tso-it-startup.service -f`.
+- Habilita el comando global rápido: `sudo tso-start`.
 
 ## Notas
 

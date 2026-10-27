@@ -423,6 +423,19 @@ cd "$ROOT"
 sudo docker compose up -d --build
 echo "    contenedores levantados/actualizados"
 
+# Habilitar orquestador de arranque en el boot (tso-it-startup.service)
+if [ -f "$DIR/start-it.sh" ]; then
+    echo "==> [Boot] Configurando servicio de arranque automático (tso-it-startup)..."
+    sudo bash "$DIR/start-it.sh" --install-service >/dev/null 2>&1 || true
+    echo "    tso-it-startup.service habilitado (orquestará servicios en cada inicio)"
+fi
+
+# Sincronizar registros DNS si hay ticket Kerberos activo de administrador
+if command -v klist >/dev/null 2>&1 && klist -s 2>/dev/null && [ -f "$ROOT/dc/dns-records.sh" ]; then
+    echo "==> [DNS] Sincronizando registros A en Samba AD DC (firma, webmail, etc.)..."
+    sudo bash "$ROOT/dc/dns-records.sh" || true
+fi
+
 echo
 echo "===================================================================="
 echo "  Deploy completado."
@@ -430,9 +443,9 @@ echo "  * Firewall nftables: tabla inet filter aplicada y habilitada"
 echo "  * SSH: config endurecida (claves, sin root, solo admins)"
 echo "  * Chrony: sirviendo hora a 192.168.0.0/24"
 echo "  * FreeRADIUS: 1812/udp (WiFi 802.1X; sonda cada 5 min → Prometheus)"
-echo "  * Contenedores: docker compose up -d --build (proxy web actualizado)"
-echo "  * DNS: si hay nombres nuevos (david/nicolas), agregar los A hacia"
-echo "    192.168.0.2 (ver docs/publicar-servicios-admin.md y dc/dns-records.sh)"
+echo "  * Contenedores: docker compose up -d --build (proxy web + firma actualizados)"
+echo "  * Orquestador boot: tso-it-startup.service activo (comando: sudo tso-start)"
+echo "  * DNS: registros de servicios (firma/webmail/etc) en dc/dns-records.sh"
 echo "  * Probar en OTRA terminal: ssh joaquin@192.168.0.2"
 echo
 echo "  Si los contenedores pierden red tras aplicar el firewall,"

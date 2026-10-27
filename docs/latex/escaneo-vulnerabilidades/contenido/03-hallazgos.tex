@@ -309,4 +309,9 @@ La evaluación de la plataforma de firma digital institucional PAdES abarcó tan
 
   \item \textbf{Resistencia a Manipulaciones y Verificación Semafórica de Integridad:}
   Se sometió el endpoint de validación (\texttt{/api/verify}) a pruebas con documentos alterados intencionalmente byte a byte. El motor de verificación detectó la incongruencia entre el hash SHA-256 recalculado sobre el \textit{ByteRange} y el hash sellado en el contenedor CMS, marcando de forma inmediata el estado de alerta roja (\textit{Firma Inválida o Documento Alterado}), certificando la robustez del no repudio y la integridad probatoria exigida por el estándar PAdES ISO 32000-2.
+
+  \item \textbf{Evaluación de Interoperabilidad Criptográfica frente al Validador Oficial de Bolivia:}
+  Para verificar la fidelidad de la estructura PAdES generada conforme a estándares internacionales (ISO 32000-2), se procesó un documento firmado en el validador estatal oficial del Estado Plurinacional de Bolivia (\url{https://validar.firmadigital.bo/}), como se ilustra en la \textbf{FIGURA \ref{fig:captura-bo-val}}. El motor estatal reconoció y validó de forma íntegra la estructura matemática del contenedor CMS y el hash SHA-256 del documento (confirmando la total ausencia de manipulación o corrupción binaria), advirtiendo exclusivamente que la Autoridad Certificadora emisora (CA Raíz UPDS) no pertenece a la infraestructura oficial de entidades certificadoras públicas acreditadas ante la ATT (Ley 164), lo cual ratifica el éxito criptográfico de la implementación en el ámbito institucional corporativo.
 \end{enumerate}
+
+\capturaAPA{fig:captura-bo-val}{Comprobación técnica externa en el validador oficial del Estado boliviano}{captura-validar-bo.png}{Portal estatal validar.firmadigital.bo validando la autenticidad técnica y la integridad matemática del PDF firmado bajo PAdES.}

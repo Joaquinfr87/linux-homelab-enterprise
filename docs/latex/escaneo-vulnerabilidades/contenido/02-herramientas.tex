@@ -143,16 +143,16 @@ La \textbf{FIGURA \ref{fig:antinmap}} evidencia este fenómeno de tarpitting def
 
 Dentro del catálogo de servicios web corporativos evaluados en la infraestructura se integró la \textbf{Plataforma de Firma Digital Institucional PAdES} (\textit{PDF Advanced Electronic Signatures}). En el entorno homelab de producción, este servicio se ejecuta de forma contenerizada bajo Docker (\texttt{tso-firma}, escuchando internamente en el puerto \texttt{5000/tcp} en la red bridge \texttt{tso-net}) y se publica a través del proxy inverso Nginx bajo el nombre de dominio \texttt{https://firma.sudoers.lan} con terminación TLS segura y resolución DNS provista por el Samba Active Directory DC (\texttt{192.168.0.2}). Para propósitos de pruebas directas y auditoría en escenarios de laboratorio portable, el servicio se expone alternativamente en el puerto \texttt{8090/tcp}.
 
-La aplicación está implementada mediante una arquitectura moderna desacoplada (\textbf{Frontend reactivo en Astro 5} y \textbf{Backend criptográfico en Python/FastAPI}). La \textbf{FIGURA \ref{fig:firma-digital}} presenta la pantalla de acceso principal de la plataforma protegida por directivas de seguridad perimetral.
+La aplicación está implementada mediante una arquitectura moderna desacoplada (\textbf{Frontend reactivo en Astro 5} y \textbf{Backend criptográfico en Python/FastAPI}). La suite unifica el ciclo de vida completo de la identidad digital a través de módulos especializados protegidos por directivas Zero Trust.
 
-\capturaAPA{fig:firma-digital}{Interfaz de Autenticación y Acceso Seguro a la Plataforma de Firma Digital}{firmadigital.jpeg}{Portal institucional con política Zero Trust (Auth Gate) para la emisión de certificados X.509 y validación PAdES.}
+\capturaAPA{fig:captura-gate}{Puerta de enlace de autenticación obligatoria (Auth Gate) en la Plataforma de Firma}{captura-auth-gate.png}{Pantalla de acceso obligatorio que bloquea las funciones criptográficas hasta completar la validación institucional.}
 
 \subsubsection{Mecanismos de Operación y Funcionamiento Criptográfico}
 
 La aplicación fue desarrollada específicamente para proveer autenticación de identidad, emisión automatizada de certificados y validación criptográfica de documentos digitales conforme a la norma internacional \textbf{ISO 32000-2} y normativas de firma electrónica. Su funcionamiento interno se articula a través de los siguientes componentes clave:
 
 \begin{enumerate}
-  \item \textbf{Control de Acceso Estricto y Middleware Zero Trust (Auth Gate):} Como se aprecia en la captura de pantalla, la plataforma implementa una barrera de seguridad (\textit{Auth Gate}) que restringe de forma tajante el acceso anónimo. El backend ejecuta un middleware de interceptación (\texttt{auth\_security\_middleware}) que responde con \texttt{401 Unauthorized} ante solicitudes no autenticadas, impidiendo que usuarios no validados emitan certificados, firmen documentos o inspeccionen registros de auditoría.
+  \item \textbf{Control de Acceso Estricto y Middleware Zero Trust (Auth Gate):} Como se ilustra en la \textbf{FIGURA \ref{fig:captura-gate}}, la plataforma implementa una barrera de seguridad (\textit{Auth Gate}) que restringe de forma tajante el acceso anónimo. El backend ejecuta un middleware de interceptación (\texttt{auth\_security\_middleware}) que responde con \texttt{401 Unauthorized} ante solicitudes no autenticadas, impidiendo que usuarios no validados emitan certificados, firmen documentos o inspeccionen registros de auditoría.
   
   \item \textbf{Infraestructura de Clave Pública (PKI) y Autoridad Certificadora Raíz:} El backend cuenta con una Autoridad Certificadora interna (\textbf{CA Raíz UPDS}) dotada de un par de llaves asimétricas \textbf{RSA de 4096 bits}. Durante el registro del usuario institucional, el sistema emite de manera desatendida un certificado digital \textbf{X.509 v3} (RSA de 2048 bits con resumen SHA-256) incorporando atributos de identidad institucional (\textit{Distinguished Name}).
   
@@ -164,15 +164,21 @@ La aplicación fue desarrollada específicamente para proveer autenticación de 
     \item Calcula el hash seguro mediante el algoritmo \textbf{SHA-256}.
     \item Cifra el hash empleando la clave privada RSA del usuario firmante.
     \item Empaqueta la estructura en un contenedor criptográfico CMS (\textit{SignedData}), inyectando el certificado X.509 del firmante y la cadena de la CA Raíz.
-    \item Inserta la firma mediante actualización incremental (\textit{Incremental Update}), garantizando que la estructura del PDF original no se modifique ni invalide firmas previas. Soporta tanto firma invisible como firma visible con rúbrica táctil capturada en un \textit{canvas} HTML5.
+    \item Inserta la firma mediante actualización incremental (\textit{Incremental Update}), garantizando que la estructura del PDF original no se modifique ni invalide firmas previas. Soporta tanto firma invisible como firma visible con rúbrica táctil capturada en un \textit{canvas} HTML5 (véase \textbf{FIGURA \ref{fig:captura-sign-ui}}).
   \end{itemize}
-  
-  \item \textbf{Diagnóstico y Validación Criptográfica en Tres Niveles:} El módulo de validación (\texttt{/api/verify}) somete el documento a una verificación semafórica exhaustiva:
+
+\capturaAPA{fig:captura-sign-ui}{Módulo interactivo de firma digital PAdES con canvas de rúbrica manuscrita}{captura-firmar-ui.png}{Interfaz de firma que presenta el firmante institucional activo, zona drag and drop de PDF, cuadrantes normalizados y lienzo táctil.}
+
+  \item \textbf{Diagnóstico y Validación Criptográfica en Tres Niveles:} Como se evidencia en la \textbf{FIGURA \ref{fig:captura-verify-ui}}, el módulo de validación (\texttt{/api/verify}) somete el documento a una verificación semafórica exhaustiva:
   \begin{enumerate}[label=\alph*)]
     \item \textbf{Integridad del Documento:} Comprobación matemática del rango de bytes y recomputación del hash SHA-256 para constatar que el PDF no sufrió alteraciones posteriores a la firma.
     \item \textbf{Autenticidad de la Firma:} Verificación de la firma digital RSA contra la clave pública del certificado incrustado.
     \item \textbf{Cadena de Confianza:} Validación de la firma del certificado contra la CA Raíz emisora y verificación del periodo de validez temporal.
   \end{enumerate}
-  
-  \item \textbf{Bitácora Inmutable y No Repudio:} Cada documento procesado registra en la base de datos la identificación del firmante, la marca temporal del servidor y el \textbf{hash SHA-256 original}, consolidando una pista de auditoría técnica que satisface los principios de no repudio e integridad probatoria.
+
+\capturaAPA{fig:captura-verify-ui}{Reporte de auditoría y diagnóstico criptográfico semafórico en la plataforma}{captura-validar-ui.png}{Panel de verificación semafórica confirmando integridad de bytes, autenticidad de clave RSA y anclaje con la CA Raíz UPDS.}
+
+  \item \textbf{Bitácora Inmutable y Credencial Institucional (No Repudio):} La plataforma despliega una credencial visual de identidad estilo diploma (\textbf{FIGURA \ref{fig:captura-cert-ui}}) donde se detallan el Nombre Común (CN), Emisor, algoritmo y huella digital SHA-256. Paralelamente, cada documento procesado registra en la base de datos la identificación del firmante, la marca temporal del servidor y el \textbf{hash SHA-256 original}, consolidando una pista de auditoría técnica inmutable para fines forenses y no repudio probatorio.
 \end{enumerate}
+
+\capturaAPA{fig:captura-cert-ui}{Diploma digital de credencial X.509 v3 y bitácora de auditoría SHA-256}{captura-cert-ui.png}{Panel de identidad digital mostrando atributos X.509 y la tabla relacional de documentos firmados para fines de no repudio.}

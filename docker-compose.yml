@@ -313,6 +313,21 @@ services:
       - tso-net
 
   # ------------------------------------------------------------------
+  # Firma Digital PAdES (UPDS) — Identidad Criptográfica & Documentos
+  # ------------------------------------------------------------------
+  firma:
+    build: ./services/firma
+    container_name: tso-firma
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      HOST: "0.0.0.0"
+    volumes:
+      - firma_data:/app/backend/data
+    networks:
+      - tso-net
+
+  # ------------------------------------------------------------------
   # EveBox — Consola Gráfica Web para Suricata IDS/IPS
   # ------------------------------------------------------------------
   evebox:
@@ -366,6 +381,7 @@ volumes:
   alertmanager_data:
   grafana_data:
   evebox_data:
+  firma_data:
 
 # Red interna del proyecto (interconexión de contenedores).
 # Kea queda FUERA de esta red (network_mode: host).

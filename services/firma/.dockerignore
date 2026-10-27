@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+dist
+.astro
+__pycache__
+*.pyc
+*.pyo
+*.p12
+*.pfx
+data
+practice
+tmp

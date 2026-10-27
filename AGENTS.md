@@ -85,6 +85,7 @@ máquina Debian** ("laptop siempre encendida", estilo lab). Es la evolución
 | Correo | Postfix + Dovecot (auth local; LDAP AD pendiente) | CONTENEDOR (`services/mail`) |
 | Webmail | Roundcube | CONTENEDOR (`services/webmail`) |
 | Archivos | Shares SMB del DC (perms por grupos AD) + gestor web | NATIVO (`smb.conf`) + CONTENEDOR (`services/filemanager`) |
+| Firma Digital PAdES | PKI CA UPDS + API Criptográfica + Frontend Astro | CONTENEDOR (`services/firma`, `firma.sudoers.lan`) |
 | Web/Proxy inverso | Nginx `*.sudoers.lan` + TLS | CONTENEDOR (`services/web`) |
 | Base de datos | PostgreSQL (+MariaDB si hace falta) | CONTENEDOR (`services/database`) |
 | Impresión | CUPS | CONTENEDOR (`services/print`) |

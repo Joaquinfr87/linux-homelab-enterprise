@@ -1,0 +1,2236 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+<BaseLayout title="Suite de Firma Digital PAdES — UPDS">
+  <!-- ESTADO DE CARGA INICIAL DE SESIÓN -->
+  <div id="auth-loading-state" class="auth-loading-state">
+    <div class="loading-icon-pulse">🛡️</div>
+    <div class="loading-text">Conectando con la Suite de Firma Digital...</div>
+    <div class="loading-subtext">Seguridad de la Información · UPDS · Red Institucional</div>
+  </div>
+
+  <!-- APLICACIÓN PRINCIPAL (VISIBLE PARA TODOS LOS MIEMBROS DE LA RED) -->
+  <div id="app-main-content" style="display:none;">
+    <!-- NAVEGACIÓN PRINCIPAL: VALIDADOR PÚBLICO + FIRMAR + MI CUENTA -->
+    <nav class="main-nav-tabs">
+      <button class="nav-btn active" data-tab="verify">
+        <span class="nav-icon">🔍</span>
+        <span class="nav-text">Validar Firma (Público)</span>
+      </button>
+      <button class="nav-btn" data-tab="sign">
+        <span class="nav-icon">✍️</span>
+        <span class="nav-text">Firmar Documento</span>
+      </button>
+      <button class="nav-btn" data-tab="account">
+        <span class="nav-icon">👤</span>
+        <span class="nav-text">Mi Certificado & Historial</span>
+      </button>
+    </nav>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 1: VALIDAR DOCUMENTO (100% PÚBLICO Y LIBRE DE ACCESO EN LA RED) -->
+    <!-- ===================================================================== -->
+    <section id="tab-verify" class="tab-pane active">
+      <!-- BANNER DE VALIDADOR PÚBLICO -->
+      <div class="public-verify-banner">
+        <div class="pv-icon">🌐</div>
+        <div class="pv-content">
+          <div class="pv-badge">RED INSTITUCIONAL · VALIDADOR PÚBLICO Y ABIERTO</div>
+          <h3 class="pv-title">Módulo de Auditoría Criptográfica PAdES (ISO 32000-2)</h3>
+          <p class="pv-desc">
+            Cualquier miembro dentro de la red puede verificar la autenticidad, la integridad matemática del archivo,
+            los datos completos del firmante (Nombre, Organización, Serie X.509) y el diagnóstico oficial reportado por la plataforma estatal <strong>validar.firmadigital.bo</strong>. No requiere inicio de sesión.
+          </p>
+        </div>
+      </div>
+
+      <div class="section-box" style="margin-top:20px;">
+        <div class="section-header">
+          <div class="step-num">🔍</div>
+          <div>
+            <h3>Auditar Documento PDF Firmado</h3>
+            <p class="section-desc">
+              Sube o arrastra cualquier documento PDF para comprobar sus firmas digitales, titular y estado de no repudio.
+            </p>
+          </div>
+        </div>
+
+        <div class="drop-zone" id="verify-drop-zone">
+          <input type="file" id="verify-pdf" accept="application/pdf" class="file-input-hidden" onchange="handleVerifyPdfSelect(event)">
+          <div class="drop-content" id="verify-drop-idle">
+            <div class="drop-icon">🔍</div>
+            <div class="drop-text">
+              <strong>Haz clic para examinar</strong> o arrastra el PDF firmado aquí
+            </div>
+            <div class="drop-hint">Analizador criptográfico PAdES (ISO 32000-2 / RFC 3278)</div>
+          </div>
+          <div class="drop-file-selected" id="verify-selected-info" style="display:none;">
+            <div class="file-icon-pdf">PDF</div>
+            <div class="file-meta">
+              <div class="file-name" id="verify-pdf-name">documento_firmado.pdf</div>
+              <div class="file-size" id="verify-pdf-size">0 KB</div>
+            </div>
+            <button type="button" class="btn-remove-file" onclick="clearVerifyPdf(event)">✕ Quitar</button>
+          </div>
+        </div>
+
+        <div class="action-bar" style="margin-top:18px;">
+          <button type="button" class="btn-primary-action" id="btn-submit-verify" onclick="executeVerifyPdf()">
+            <span class="btn-icon">🔍</span>
+            <span class="btn-label">Auditar Documento y Ver Firmante</span>
+          </button>
+        </div>
+
+        <!-- SIMULADOR DE ALTERACIÓN / TAMPERING PARA PRUEBA DE INTEGRIDAD -->
+        <div class="tamper-box" id="tamper-section-box">
+          <div class="tamper-header">
+            <span class="tamper-icon">🧪</span>
+            <div>
+              <h4 style="margin:0 0 2px;color:#92400e;font-size:14px;">Simulador de Alteración de PDF (Prueba de Ruptura de Integridad)</h4>
+              <p style="margin:0;font-size:12px;color:#b45309;line-height:1.4;">
+                Demuestra el principio de no repudio: corrompe intencionalmente 1 solo byte dentro del rango protegido para verificar cómo el sistema local y <strong>validar.firmadigital.bo</strong> detectan inmediatamente que el documento fue alterado.
+              </p>
+            </div>
+          </div>
+          <div class="tamper-actions">
+            <button type="button" class="btn-tamper-run" id="btn-tamper-run" onclick="executeTamperAndAudit()">
+              ⚡ Alterar este PDF y Auditar de inmediato
+            </button>
+            <button type="button" class="btn-tamper-dl" id="btn-tamper-dl" onclick="executeTamperDownload()">
+              ⬇️ Descargar copia alterada (.pdf)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENEDOR DE RESULTADOS DE AUDITORÍA -->
+      <div id="verify-results-container" style="display:none;margin-top:20px;"></div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 2: FIRMAR DOCUMENTO                                             -->
+    <!-- ===================================================================== -->
+    <section id="tab-sign" class="tab-pane">
+      <!-- VISTA PARA USUARIOS CON SESIÓN INICIADA -->
+      <div id="sign-active-content" style="display:none;">
+        <!-- BARRA DE IDENTIDAD ACTIVA DEL FIRMANTE -->
+        <div class="identity-card-active">
+          <div class="id-card-left">
+            <div class="id-card-icon">🔐</div>
+            <div>
+              <div class="id-card-title">
+                <span>Firmando como:</span>
+                <strong id="active-signer-name">Cargando identidad...</strong>
+                <span class="badge-tag badge-success">CA Raíz UPDS</span>
+              </div>
+              <div class="id-card-desc" id="active-signer-desc">
+                Certificado X.509 v3 activo · Clave privada custodiada de forma segura
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn-subtle" onclick="goToTab('account')" title="Ver detalles de mi certificado">
+            Ver Credencial
+          </button>
+        </div>
+
+        <!-- PASO 1: SELECCIONAR ARCHIVO PDF -->
+        <div class="section-box">
+          <div class="section-header">
+            <div class="step-num">1</div>
+            <div>
+              <h3>Documento PDF a Firmar</h3>
+              <p class="section-desc">Arrastra o selecciona el archivo PDF que deseas certificar digitalmente.</p>
+            </div>
+          </div>
+
+          <div class="drop-zone" id="pdf-drop-zone">
+            <input type="file" id="sign-pdf" accept="application/pdf" class="file-input-hidden" onchange="handlePdfSelect(event)">
+            <div class="drop-content" id="pdf-drop-idle">
+              <div class="drop-icon">📄</div>
+              <div class="drop-text">
+                <strong>Haz clic para examinar</strong> o arrastra tu archivo PDF aquí
+              </div>
+              <div class="drop-hint">Formato aceptado: .pdf (PAdES / ISO 32000-2)</div>
+            </div>
+            <div class="drop-file-selected" id="pdf-selected-info" style="display:none;">
+              <div class="file-icon-pdf">PDF</div>
+              <div class="file-meta">
+                <div class="file-name" id="selected-pdf-name">documento.pdf</div>
+                <div class="file-size" id="selected-pdf-size">0 KB</div>
+              </div>
+              <button type="button" class="btn-remove-file" onclick="clearSelectedPdf(event)">✕ Quitar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 2: FORMATO Y OPCIONES DE LA FIRMA -->
+        <div class="section-box">
+          <div class="section-header">
+            <div class="step-num">2</div>
+            <div>
+              <h3>Configuración de la Firma PAdES</h3>
+              <p class="section-desc">Define el formato de la firma y el motivo del acto.</p>
+            </div>
+          </div>
+
+          <!-- TOGGLE FIRMA INVISIBLE VS VISIBLE -->
+          <div class="format-choice-grid">
+            <label class="format-option">
+              <input type="radio" name="sig_visibility" value="invisible" checked onchange="toggleSignatureFormat('invisible')">
+              <div class="format-card">
+                <span class="format-icon">🔏</span>
+                <div>
+                  <strong>Firma Criptográfica Invisible (Recomendada)</strong>
+                  <p>Incrusta la firma digital directamente en la estructura interna del PDF sin alterar el diseño visual.</p>
+                </div>
+              </div>
+            </label>
+
+            <label class="format-option">
+              <input type="radio" name="sig_visibility" value="visible" onchange="toggleSignatureFormat('visible')">
+              <div class="format-card">
+                <span class="format-icon">🖋️</span>
+                <div>
+                  <strong>Firma Visible con Estampa & Rúbrica</strong>
+                  <p>Estampa un sello visual con tu nombre, fecha, sello de la UPDS y tu rúbrica manuscrita sobre la hoja.</p>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <!-- SECCIÓN DE FIRMA VISIBLE (CONDICIONAL) -->
+          <div id="visual-config-box" style="display:none;margin-top:16px;">
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="input-label">Posición en la hoja</label>
+                <select id="sign-pos" class="form-control" onchange="updatePreviewStamp()">
+                  <option value="bottom-right" selected>Inferior Derecha (Predeterminado)</option>
+                  <option value="bottom-left">Inferior Izquierda</option>
+                  <option value="top-right">Superior Derecha</option>
+                  <option value="top-left">Superior Izquierda</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="input-label">Página a estampar</label>
+                <select id="sign-page" class="form-control">
+                  <option value="0" selected>Primera página (Pág. 1)</option>
+                  <option value="-1">Última página</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- LIENZO INTERACTIVO DE RÚBRICA MANUSCRITA -->
+            <div class="canvas-box">
+              <div class="canvas-header">
+                <label class="input-label" style="margin:0;">Dibuja tu firma o rúbrica:</label>
+                <button type="button" class="btn-link" onclick="clearSignatureCanvas()">Borrar trazo</button>
+              </div>
+              <div class="canvas-wrapper">
+                <canvas id="sig-canvas" width="460" height="120"></canvas>
+                <div class="canvas-watermark" id="canvas-watermark">Dibuja aquí con el mouse o dedo</div>
+              </div>
+              <div class="canvas-footer">
+                <span class="canvas-tip">Opcional: Sube una imagen de tu firma (.png transparente):</span>
+                <input type="file" id="sig-img-upload" accept="image/png,image/jpeg" style="font-size:12px;" onchange="handleSigImgUpload(event)">
+              </div>
+            </div>
+
+            <!-- PREVIEW DE LA ESTAMPA -->
+            <div class="stamp-preview-container">
+              <div class="stamp-preview-title">Previsualización de la estampa en el PDF:</div>
+              <div class="stamp-card">
+                <div class="stamp-seal">UNIVERSIDAD PRIVADA DOMINGO SAVIO · FIRMA DIGITAL</div>
+                <div class="stamp-signer" id="preview-signer">Firmante: ...</div>
+                <div class="stamp-reason" id="preview-reason">Motivo: Conformidad técnica</div>
+                <div class="stamp-date" id="preview-date">Fecha: ...</div>
+                <div class="stamp-hash">Validador: ISO 32000-2 · PAdES CMS</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- METADATOS BÁSICOS -->
+          <div class="form-grid-2" style="margin-top:16px;">
+            <div class="form-group">
+              <label class="input-label">Motivo de la Firma</label>
+              <input type="text" id="sign-reason" value="Firma de conformidad técnica (UPDS)" class="form-control">
+              <div class="quick-tags">
+                <button type="button" class="tag-btn" onclick="setReason('Aprobación de informe académico')">Aprobación académica</button>
+                <button type="button" class="tag-btn" onclick="setReason('Firma de conformidad técnica')">Conformidad técnica</button>
+                <button type="button" class="tag-btn" onclick="setReason('Revisión de seguridad de la información')">Revisión de seguridad</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="input-label">Lugar / Ciudad</label>
+              <input type="text" id="sign-loc" value="La Paz, Bolivia" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTÓN DE FIRMA -->
+        <div class="action-bar">
+          <button type="button" class="btn-primary-action" id="btn-submit-sign" onclick="executeSignPdf()">
+            <span class="btn-icon">✍️</span>
+            <span class="btn-label">Firmar Documento con PAdES</span>
+          </button>
+        </div>
+
+        <!-- TARJETA DE RESULTADO DE FIRMA -->
+        <div id="sign-result-card" class="result-card" style="display:none;">
+          <div class="result-header">
+            <span class="result-icon-badge">✅</span>
+            <div>
+              <h4 style="margin:0;color:#065f46;font-size:16px;">¡Documento Firmado Exitosamente!</h4>
+              <p id="sign-result-text" style="font-size:13px;color:#047857;margin:4px 0 0;">...</p>
+            </div>
+          </div>
+          <div class="result-actions">
+            <button type="button" class="btn-subtle" id="btn-download-signed-pdf">⬇️ Descargar nuevamente</button>
+            <button type="button" class="btn-primary-action" style="width:auto;padding:8px 16px;font-size:13px;" onclick="goToAuditWithSignedPdf()">
+              🔍 Auditar y Validar este documento ahora
+            </button>
+            <button type="button" class="btn-tamper-run" style="width:auto;padding:8px 16px;font-size:13px;" onclick="tamperSignedPdfAndAudit()">
+              🧪 Probar alterador y verificar fallo de integridad
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA CUANDO EL USUARIO NO HA INICIADO SESIÓN (AUTH GATE PARA FIRMA) -->
+      <div id="sign-gate-content" style="display:none;">
+        <div class="auth-gate-card">
+          <div class="auth-gate-hero">
+            <span class="auth-gate-badge">🔐 CUENTA DE FIRMANTE REQUERIDA</span>
+            <h2>Emisión de Firma Digital Avanzada</h2>
+            <p>
+              Para emitir tu par de claves criptográficas RSA 2048 y firmar documentos PDF con tu
+              Certificado Institucional X.509, <strong>inicia sesión o crea tu cuenta</strong>.
+            </p>
+            <div class="public-notice-pill">
+              💡 <strong>Nota:</strong> Si solo deseas comprobar la validez de un documento firmado, el 
+              <a href="javascript:void(0)" onclick="goToTab('verify')" style="color:#0f3d6e;font-weight:700;text-decoration:underline;">Validador de Firmas es 100% público</a> y abierto para toda la red.
+            </div>
+          </div>
+
+          <!-- SELECTOR DE PESTAÑA: LOGIN / REGISTRO -->
+          <div class="auth-switch-bar">
+            <button type="button" class="auth-switch-btn active" id="gate-btn-login" onclick="switchGateTab('login')">
+              🔑 Iniciar Sesión
+            </button>
+            <button type="button" class="auth-switch-btn" id="gate-btn-register" onclick="switchGateTab('register')">
+              ✨ Crear Cuenta & Emitir Certificado
+            </button>
+          </div>
+
+          <!-- FORMULARIO DE INICIO DE SESIÓN -->
+          <div id="gate-panel-login" class="gate-panel active">
+            <form onsubmit="handleGateLogin(event)" class="gate-form">
+              <div class="form-group">
+                <label class="input-label">Correo Institucional / Personal <span class="req">*</span></label>
+                <input type="email" id="gate-login-email" required placeholder="ejemplo@upds.edu.bo" class="form-control" autocomplete="email">
+              </div>
+              <div class="form-group" style="margin-top:14px;">
+                <label class="input-label">Contraseña <span class="req">*</span></label>
+                <input type="password" id="gate-login-password" required placeholder="Tu contraseña" class="form-control" autocomplete="current-password">
+              </div>
+
+              <button type="submit" class="btn-primary-action" id="btn-gate-login" style="margin-top:20px;">
+                <span class="btn-icon">🚀</span>
+                <span class="btn-label">Ingresar y Desbloquear Firma</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- FORMULARIO DE REGISTRO -->
+          <div id="gate-panel-register" class="gate-panel" style="display:none;">
+            <div class="pki-mini-banner">
+              <span class="pki-mini-icon">🏛️</span>
+              <div>
+                <strong>Emisión Criptográfica Institucional:</strong>
+                Al registrarte, la Autoridad Certificadora (CA Raíz UPDS) generará tu par de claves RSA 2048 y emitirá tu Certificado X.509 v3 oficial.
+              </div>
+            </div>
+
+            <form onsubmit="handleGateRegister(event)" class="gate-form">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="input-label">Nombre Completo <span class="req">*</span></label>
+                  <input type="text" id="gate-reg-name" required placeholder="Ej. Juan Pérez" class="form-control" autocomplete="name">
+                  <span class="form-tip">Nombre que constará en tu firma digital.</span>
+                </div>
+                <div class="form-group">
+                  <label class="input-label">Correo Electrónico <span class="req">*</span></label>
+                  <input type="email" id="gate-reg-email" required placeholder="juan.perez@upds.edu.bo" class="form-control" autocomplete="email">
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="input-label">Contraseña <span class="req">*</span></label>
+                  <input type="password" id="gate-reg-password" required minlength="6" placeholder="Mínimo 6 caracteres" class="form-control" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                  <label class="input-label">Facultad / Unidad</label>
+                  <input type="text" id="gate-reg-unit" value="Seguridad Informatica" class="form-control">
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="input-label">Sede / Ciudad</label>
+                  <input type="text" id="gate-reg-city" value="La Paz" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label class="input-label">Organización Emisora</label>
+                  <input type="text" id="gate-reg-org" value="Universidad Privada Domingo Savio" class="form-control" readonly>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-primary-action" id="btn-gate-register" style="margin-top:20px;">
+                <span class="btn-icon">⚡</span>
+                <span class="btn-label">Crear Cuenta & Emitir Certificado X.509</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 3: MI CERTIFICADO & HISTORIAL                                   -->
+    <!-- ===================================================================== -->
+    <section id="tab-account" class="tab-pane">
+      <!-- VISTA PARA USUARIOS CON SESIÓN INICIADA -->
+      <div id="account-active-content" style="display:none;">
+        <!-- PERFIL DEL USUARIO -->
+        <div class="profile-card">
+          <div class="profile-left">
+            <div class="profile-avatar" id="auth-avatar-text">UP</div>
+            <div class="profile-info">
+              <div class="profile-name-row">
+                <h2 id="auth-user-name">Usuario</h2>
+                <span class="badge-tag badge-success">Certificado Activo</span>
+              </div>
+              <div class="profile-meta-row">
+                <span id="auth-user-email">...</span> · 
+                <span id="auth-user-unit">...</span> · 
+                <span id="auth-user-city">...</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn-logout" onclick="handleLogout()" title="Cerrar sesión actual">
+            🚪 Cerrar Sesión
+          </button>
+        </div>
+
+        <!-- CARNET DIGITAL CRIPTOGRÁFICO X.509 -->
+        <div class="section-box" style="margin-top:20px;">
+          <div class="section-header">
+            <div class="step-num">🛡️</div>
+            <div>
+              <h3>Certificado Digital Institucional X.509 v3</h3>
+              <p class="section-desc">Identidad criptográfica oficial expedida por la Autoridad Certificadora Raíz UPDS.</p>
+            </div>
+          </div>
+
+          <div class="cert-diploma-card">
+            <div class="cert-diploma-header">
+              <div class="cert-diploma-title">
+                <span>REPÚBLICA DE BOLIVIA · UNIVERSIDAD PRIVADA DOMINGO SAVIO</span>
+                <h4>CERTIFICADO DE FIRMA DIGITAL ELECTRÓNICA AVANZADA (PAdES)</h4>
+              </div>
+              <div class="cert-diploma-seal">UPDS CA</div>
+            </div>
+
+            <div class="cert-diploma-body">
+              <div class="diploma-grid">
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Titular de la Credencial (Common Name):</span>
+                  <span class="diploma-val" id="cert-cn-val">...</span>
+                </div>
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Correo Electrónico:</span>
+                  <span class="diploma-val" id="cert-email-val">...</span>
+                </div>
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Autoridad Emisora (Issuer CA):</span>
+                  <span class="diploma-val" style="color:var(--primary);font-weight:700;">Autoridad Certificadora Raiz UPDS</span>
+                </div>
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Algoritmo & Parámetros:</span>
+                  <span class="diploma-val">RSA 2048 bits · Resumen SHA-256 · ISO 32000-2</span>
+                </div>
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Número de Serie (Hexadecimal):</span>
+                  <code class="diploma-code" id="cert-serial-val">...</code>
+                </div>
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Huella Criptográfica (SHA-256 Fingerprint):</span>
+                  <code class="diploma-code" id="cert-fp-val">...</code>
+                </div>
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Vigencia del Certificado:</span>
+                  <span class="diploma-val" id="cert-validity-val">...</span>
+                </div>
+                <div class="diploma-item">
+                  <span class="diploma-lbl">Custodia de la Clave Privada:</span>
+                  <span class="diploma-val" style="color:#059669;font-weight:700;">🔒 Almacenada con cifrado simétrico AES-256 en reposo</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="cert-diploma-footer">
+              <a href="/api/auth/download_p12" class="btn-download-cert" id="btn-dl-p12">
+                📦 Descargar Contenedor PKCS#12 (.p12)
+              </a>
+              <a href="/api/auth/download_cert" class="btn-download-cert" id="btn-dl-crt">
+                📜 Descargar Certificado (.crt)
+              </a>
+              <a href="/api/auth/download_ca" class="btn-download-cert" id="btn-dl-ca">
+                🏛️ Descargar CA Raíz UPDS (.crt)
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTORIAL Y BITÁCORA DE DOCUMENTOS FIRMADOS -->
+        <div class="section-box" style="margin-top:20px;">
+          <div class="section-header">
+            <div class="step-num">📋</div>
+            <div>
+              <h3>Historial de Documentos Firmados (Auditoría)</h3>
+              <p class="section-desc">Trazabilidad inmutable de todas las firmas digitales generadas con tu cuenta.</p>
+            </div>
+          </div>
+
+          <div id="audit-table-container">
+            <div class="audit-empty-msg" id="audit-loading-msg">Cargando bitácora de auditoría...</div>
+            <table class="audit-table" id="audit-logs-table" style="display:none;">
+              <thead>
+                <tr>
+                  <th>Fecha y Hora</th>
+                  <th>Operación</th>
+                  <th>Documento PDF</th>
+                  <th>Hash SHA-256 (Original)</th>
+                </tr>
+              </thead>
+              <tbody id="audit-logs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA CUANDO EL USUARIO NO HA INICIADO SESIÓN -->
+      <div id="account-gate-content" style="display:none;">
+        <div class="auth-gate-card">
+          <div class="auth-gate-hero">
+            <span class="auth-gate-badge">👤 CUENTA DE USUARIO REQUERIDA</span>
+            <h2>Gestión de Certificados y Credenciales</h2>
+            <p>
+              Inicia sesión o regístrate para visualizar tu certificado digital emitido por la CA Raíz UPDS,
+              descargar tus llaves y consultar la bitácora de documentos firmados.
+            </p>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
+            <button type="button" class="btn-primary-action" onclick="goToTab('sign')" style="width:auto;padding:10px 24px;">
+              🔑 Iniciar Sesión / Registrarse
+            </button>
+            <button type="button" class="btn-subtle" onclick="goToTab('verify')" style="width:auto;padding:10px 20px;">
+              🔍 Ir al Validador Público
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ESTILOS LIMPIOS Y MODERNOS DE LA SUITE -->
+  <style>
+    /* ESTADO DE CARGA */
+    .auth-loading-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .loading-icon-pulse {
+      font-size: 38px;
+      animation: pulseDot 1.5s infinite;
+      display: inline-block;
+    }
+    .loading-text {
+      margin-top: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 16px;
+    }
+    .loading-subtext {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* GATE DE ACCESO */
+    .auth-gate-card {
+      max-width: 600px;
+      margin: 20px auto 30px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 36px 40px;
+      box-shadow: var(--shadow-xl);
+    }
+    .auth-gate-hero {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .auth-gate-badge {
+      display: inline-block;
+      padding: 5px 14px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 999px;
+      color: #b91c1c;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .auth-gate-hero h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 0 0 8px;
+    }
+    .auth-gate-hero p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin: 0 auto;
+    }
+
+    .auth-switch-bar {
+      display: flex;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      margin-bottom: 22px;
+      gap: 4px;
+    }
+    .auth-switch-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .auth-switch-btn.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      font-weight: 700;
+    }
+
+    .pki-mini-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #1e3a8a;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .pki-mini-icon { font-size: 20px; flex-shrink: 0; }
+
+    /* NAVEGACIÓN PRINCIPAL: 3 PESTAÑAS */
+    .main-nav-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 8px;
+      overflow-x: auto;
+    }
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .nav-btn:hover {
+      background: var(--surface-subtle);
+      color: var(--text-main);
+    }
+    .nav-btn.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary-border);
+      font-weight: 700;
+      box-shadow: 0 2px 4px rgba(15, 61, 110, 0.06);
+    }
+    .nav-icon { font-size: 16px; }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.2s ease-out; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* BARRA DE IDENTIDAD ACTIVA */
+    .identity-card-active {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .id-card-left { display: flex; align-items: center; gap: 14px; }
+    .id-card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #dcfce7;
+      color: #15803d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .id-card-title {
+      font-size: 14px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .id-card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* SECCIONES Y FORMULARIOS */
+    .section-box {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .step-num {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-header h3 { font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0; }
+    .section-desc { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .form-group { display: flex; flex-direction: column; }
+    .input-label { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+    .input-label .req { color: var(--danger); }
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      color: var(--text-main);
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(15, 61, 110, 0.1);
+    }
+    .form-tip { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* FORMATO DE FIRMA (INVISIBLE VS VISIBLE) */
+    .format-choice-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .format-option { cursor: pointer; }
+    .format-option input { display: none; }
+    .format-card {
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: all 0.15s ease;
+      background: #ffffff;
+    }
+    .format-icon { font-size: 24px; flex-shrink: 0; }
+    .format-card strong { font-size: 13px; color: var(--text-main); display: block; margin-bottom: 2px; }
+    .format-card p { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin: 0; }
+    .format-option input:checked + .format-card {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    /* CANVAS DE FIRMA */
+    .canvas-box {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      margin-top: 14px;
+    }
+    .canvas-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .btn-link { background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-link:hover { text-decoration: underline; }
+    .canvas-wrapper {
+      position: relative;
+      background: #ffffff;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    #sig-canvas { display: block; width: 100%; height: 110px; cursor: crosshair; touch-action: none; }
+    .canvas-watermark {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 12px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+    .canvas-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; flex-wrap: wrap; gap: 8px; }
+    .canvas-tip { font-size: 11px; color: var(--text-muted); }
+
+    /* PREVIEW DE ESTAMPA */
+    .stamp-preview-container { margin-top: 16px; }
+    .stamp-preview-title { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
+    .stamp-card {
+      border: 2px solid var(--primary);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      background: #ffffff;
+      max-width: 330px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .stamp-seal { font-size: 10px; font-weight: 800; color: var(--primary); border-bottom: 1px solid #bfdbfe; padding-bottom: 3px; }
+    .stamp-signer { font-weight: 700; font-size: 12px; color: #0f172a; margin-top: 3px; }
+    .stamp-reason, .stamp-date { font-size: 11px; color: #475569; }
+    .stamp-hash { font-size: 9px; color: #94a3b8; font-family: monospace; margin-top: 2px; }
+
+    /* BOTONES */
+    .quick-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .tag-btn {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .tag-btn:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary-border); }
+
+    .action-bar { margin-top: 20px; }
+    .btn-primary-action {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 14px 22px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 12px rgba(15, 61, 110, 0.25);
+      transition: all 0.2s ease;
+    }
+    .btn-primary-action:hover {
+      background: linear-gradient(135deg, var(--primary-hover) 0%, #1e40af 100%);
+      transform: translateY(-1px);
+    }
+    .btn-primary-action:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .btn-subtle {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+    .btn-subtle:hover { background: var(--surface-subtle); }
+
+    .btn-logout {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-sm);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #b91c1c;
+      cursor: pointer;
+    }
+    .btn-logout:hover { background: #fee2e2; }
+
+    /* TARJETA DE RESULTADO */
+    .result-card {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-top: 20px;
+    }
+    .result-header { display: flex; align-items: flex-start; gap: 14px; }
+    .result-icon-badge { font-size: 28px; }
+    .result-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+    /* DROP ZONE */
+    .drop-zone {
+      position: relative;
+      border: 2px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafcff;
+      transition: all 0.2s ease;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .file-input-hidden { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .drop-icon { font-size: 40px; margin-bottom: 8px; }
+    .drop-text { font-size: 14px; color: var(--text-main); }
+    .drop-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .drop-file-selected { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 18px; background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius-md); max-width: 480px; margin: 0 auto; }
+    .file-icon-pdf { background: #ef4444; color: white; padding: 6px 10px; border-radius: 6px; font-weight: 800; font-size: 11px; }
+    .file-meta { text-align: left; flex: 1; overflow: hidden; }
+    .file-name { font-weight: 700; font-size: 13px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+    .file-size { font-size: 11px; color: var(--text-muted); }
+    .btn-remove-file { background: none; border: none; color: var(--danger); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+    /* AUDITORÍA Y RESULTADOS */
+    .audit-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .audit-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .audit-badge-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      background: var(--surface-subtle);
+    }
+    .badge-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px; }
+    .status-ok { color: #059669; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .status-bad { color: #dc2626; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+    /* PERFIL Y DIPLOMA CRIPTOGRÁFICO */
+    .profile-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .profile-left { display: flex; align-items: center; gap: 16px; }
+    .profile-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .profile-name-row { display: flex; align-items: center; gap: 10px; }
+    .profile-name-row h2 { font-size: 17px; font-weight: 800; color: var(--primary); margin: 0; }
+    .profile-meta-row { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .cert-diploma-card {
+      border: 2px solid var(--primary);
+      border-radius: var(--radius-md);
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(15, 61, 110, 0.08);
+    }
+    .cert-diploma-header {
+      background: linear-gradient(135deg, var(--primary) 0%, #1e3a8a 100%);
+      color: #ffffff;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .cert-diploma-title span { font-size: 10px; font-weight: 700; letter-spacing: 1px; opacity: 0.85; display: block; }
+    .cert-diploma-title h4 { font-size: 14px; font-weight: 800; margin: 2px 0 0; }
+    .cert-diploma-seal { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 800; }
+    .cert-diploma-body { padding: 20px; background: #fafcff; }
+    .diploma-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 20px; }
+    .diploma-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 2px; }
+    .diploma-val { font-size: 13px; color: var(--text-main); font-weight: 600; word-break: break-all; }
+    .diploma-code { font-family: monospace; font-size: 11px; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 4px; display: inline-block; word-break: break-all; }
+    .cert-diploma-footer { background: #f8fafc; border-top: 1px solid var(--border); padding: 14px 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-download-cert { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-sm); background: #ffffff; border: 1px solid var(--border-strong); color: var(--text-main); font-size: 12px; font-weight: 600; text-decoration: none; }
+    .btn-download-cert:hover { background: var(--surface-subtle); color: var(--primary); border-color: var(--primary); }
+
+    /* TABLA DE AUDITORÍA */
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+    .audit-table th { background: var(--surface-subtle); color: var(--text-muted); font-size: 11px; text-transform: uppercase; font-weight: 700; text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .audit-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+    .audit-empty-msg { padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+    /* BANNER DE VALIDADOR PÚBLICO */
+    .public-verify-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-lg);
+      padding: 18px 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .pv-icon {
+      font-size: 32px;
+      background: #dbeafe;
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .pv-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      background: #dbeafe;
+      color: #1e40af;
+      font-size: 10px;
+      font-weight: 800;
+      border-radius: 999px;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .pv-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 0 0 4px;
+    }
+    .pv-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+    .public-notice-pill {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #065f46;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    /* ESTILOS DE FIRMANTE EN RESULTADO DE AUDITORÍA */
+    .sig-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .sig-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .sig-num-badge {
+      background: var(--primary);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .sig-tech-pill {
+      font-family: monospace;
+      font-size: 11px;
+      background: #f1f5f9;
+      padding: 3px 8px;
+      border-radius: 4px;
+      color: #475569;
+    }
+    .signer-highlight-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-bottom: 14px;
+    }
+    .signer-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #dcfce7;
+      color: #166534;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .signer-label-tag {
+      font-size: 10px;
+      font-weight: 800;
+      color: #15803d;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .signer-title-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 2px 0;
+    }
+    .signer-org-line {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .sig-info-table-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 16px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 12px;
+    }
+    .sig-info-item .info-k {
+      font-weight: 700;
+      color: var(--text-muted);
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .sig-info-item .info-v {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+    .sig-cert-details-box {
+      margin-top: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 12px;
+    }
+    .cert-detail-title {
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+    .cert-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 6px 14px;
+      color: #334155;
+    }
+    .official-adsib-box {
+      margin-top: 16px;
+      background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+      border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b;
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+    }
+    .official-adsib-box.info-mode {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      border-left-color: #0284c7;
+    }
+    .adsib-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .adsib-flag {
+      font-size: 24px;
+    }
+    .adsib-sub {
+      font-size: 11px;
+      color: #78350f;
+    }
+    .adsib-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 8px 14px;
+      font-size: 12px;
+      color: #451a03;
+      background: rgba(254, 243, 199, 0.5);
+      padding: 10px 14px;
+      border-radius: 6px;
+    }
+    .adsib-trust-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #78350f;
+      line-height: 1.4;
+    }
+    .adsib-footer {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .btn-link-external {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f3d6e;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-link-external:hover {
+      text-decoration: underline;
+      color: #0284c7;
+    }
+  </style>
+
+  <!-- LÓGICA DE INTERACCIÓN CLIENTE -->
+  <script is:inline>
+    // Variables de estado
+    let currentUser = null;
+    let selectedPdfFile = null;
+    let selectedVerifyPdfFile = null;
+    let signedPdfBlob = null;
+    let signedPdfFileName = 'documento_firmado.pdf';
+    let currentSigVisibility = 'invisible';
+
+    // Canvas de firma
+    const canvas = document.getElementById('sig-canvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+    let isDrawing = false;
+    let hasDrawnSignature = false;
+
+    function initCanvas() {
+      if (!canvas || !ctx) return;
+      ctx.strokeStyle = '#0f3d6e';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: (clientX - rect.left) * (canvas.width / rect.width),
+          y: (clientY - rect.top) * (canvas.height / rect.height)
+        };
+      }
+
+      function startDraw(e) {
+        isDrawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+        document.getElementById('canvas-watermark').style.display = 'none';
+        hasDrawnSignature = true;
+        e.preventDefault();
+      }
+
+      function draw(e) {
+        if (!isDrawing) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        e.preventDefault();
+      }
+
+      function stopDraw() { isDrawing = false; }
+
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      window.addEventListener('mouseup', stopDraw);
+
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      window.addEventListener('touchend', stopDraw);
+    }
+
+    function clearSignatureCanvas() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('canvas-watermark').style.display = 'block';
+      hasDrawnSignature = false;
+      document.getElementById('sig-img-upload').value = '';
+    }
+
+    function handleSigImgUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        clearSignatureCanvas();
+        document.getElementById('canvas-watermark').style.display = 'none';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        hasDrawnSignature = true;
+        window.showToast('Sello Cargado', 'Imagen integrada a la estampa.', 'info');
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    // Navegación de pestañas principales (Firmar, Validar, Mi Certificado)
+    function goToTab(tabName) {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      const btn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
+      if (btn) btn.classList.add('active');
+      const tab = document.getElementById('tab-' + tabName);
+      if (tab) tab.classList.add('active');
+    }
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabName = btn.getAttribute('data-tab');
+        goToTab(tabName);
+      });
+    });
+
+    // Subpestañas del Auth Gate (Login vs Registro)
+    function switchGateTab(mode) {
+      document.getElementById('gate-btn-login').classList.toggle('active', mode === 'login');
+      document.getElementById('gate-btn-register').classList.toggle('active', mode === 'register');
+      document.getElementById('gate-panel-login').style.display = (mode === 'login') ? 'block' : 'none';
+      document.getElementById('gate-panel-register').style.display = (mode === 'register') ? 'block' : 'none';
+    }
+
+    // Toggle de visibilidad de firma (Invisible vs Visible)
+    function toggleSignatureFormat(format) {
+      currentSigVisibility = format;
+      const visualBox = document.getElementById('visual-config-box');
+      visualBox.style.display = (format === 'visible') ? 'block' : 'none';
+      if (format === 'visible') {
+        updatePreviewStamp();
+      }
+    }
+
+    function setReason(reason) {
+      document.getElementById('sign-reason').value = reason;
+      updatePreviewStamp();
+    }
+
+    function updatePreviewStamp() {
+      const signer = currentUser ? currentUser.full_name : 'Estudiante UPDS';
+      const reason = document.getElementById('sign-reason').value || 'Conformidad técnica';
+      const loc = document.getElementById('sign-loc').value || 'La Paz, BO';
+      document.getElementById('preview-signer').textContent = 'Firmante: ' + signer;
+      document.getElementById('preview-reason').textContent = 'Motivo: ' + reason;
+      document.getElementById('preview-date').textContent = 'Fecha: ' + new Date().toLocaleDateString() + ' · ' + loc;
+    }
+
+    // Drag and Drop para PDF a firmar
+    const dropZone = document.getElementById('pdf-drop-zone');
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); });
+    });
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        applyPdfFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handlePdfSelect(e) {
+      if (e.target.files && e.target.files[0]) {
+        applyPdfFile(e.target.files[0]);
+      }
+    }
+
+    function applyPdfFile(file) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        window.showToast('Formato Inválido', 'Solo se admiten documentos en formato PDF.', 'error');
+        return;
+      }
+      selectedPdfFile = file;
+      document.getElementById('selected-pdf-name').textContent = file.name;
+      document.getElementById('selected-pdf-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+      document.getElementById('pdf-drop-idle').style.display = 'none';
+      document.getElementById('pdf-selected-info').style.display = 'flex';
+    }
+
+    function clearSelectedPdf(e) {
+      if (e) e.stopPropagation();
+      selectedPdfFile = null;
+      document.getElementById('sign-pdf').value = '';
+      document.getElementById('pdf-drop-idle').style.display = 'block';
+      document.getElementById('pdf-selected-info').style.display = 'none';
+      document.getElementById('sign-result-card').style.display = 'none';
+    }
+
+    // Drag and Drop para PDF a auditar
+    const verifyDropZone = document.getElementById('verify-drop-zone');
+    ['dragenter', 'dragover'].forEach(name => {
+      verifyDropZone.addEventListener(name, (e) => { e.preventDefault(); verifyDropZone.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      verifyDropZone.addEventListener(name, (e) => { e.preventDefault(); verifyDropZone.classList.remove('dragover'); });
+    });
+    verifyDropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        applyVerifyPdfFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleVerifyPdfSelect(e) {
+      if (e.target.files && e.target.files[0]) {
+        applyVerifyPdfFile(e.target.files[0]);
+      }
+    }
+
+    function applyVerifyPdfFile(file) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        window.showToast('Formato Inválido', 'Solo se admiten archivos PDF.', 'error');
+        return;
+      }
+      selectedVerifyPdfFile = file;
+      document.getElementById('verify-pdf-name').textContent = file.name;
+      document.getElementById('verify-pdf-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+      document.getElementById('verify-drop-idle').style.display = 'none';
+      document.getElementById('verify-selected-info').style.display = 'flex';
+      document.getElementById('verify-results-container').style.display = 'none';
+    }
+
+    function clearVerifyPdf(e) {
+      if (e) e.stopPropagation();
+      selectedVerifyPdfFile = null;
+      document.getElementById('verify-pdf').value = '';
+      document.getElementById('verify-drop-idle').style.display = 'block';
+      document.getElementById('verify-selected-info').style.display = 'none';
+      document.getElementById('verify-results-container').style.display = 'none';
+    }
+
+    // AUTENTICACIÓN: VERIFICAR ESTADO
+    async function checkUserAuth() {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          currentUser = data.user;
+          renderAuthenticatedUser(currentUser);
+        } else {
+          currentUser = null;
+          renderAnonymousUser();
+        }
+      } catch (e) {
+        currentUser = null;
+        renderAnonymousUser();
+      }
+    }
+
+    function renderAuthenticatedUser(user) {
+      const loadingEl = document.getElementById('auth-loading-state');
+      if (loadingEl) loadingEl.style.display = 'none';
+      const mainEl = document.getElementById('app-main-content');
+      if (mainEl) mainEl.style.display = 'block';
+
+      // Alternar secciones activas vs auth gate
+      const signActive = document.getElementById('sign-active-content');
+      if (signActive) signActive.style.display = 'block';
+      const signGate = document.getElementById('sign-gate-content');
+      if (signGate) signGate.style.display = 'none';
+
+      const accountActive = document.getElementById('account-active-content');
+      if (accountActive) accountActive.style.display = 'block';
+      const accountGate = document.getElementById('account-gate-content');
+      if (accountGate) accountGate.style.display = 'none';
+
+      // Cabecera superior
+      const headerPill = document.getElementById('user-header-pill');
+      if (headerPill) {
+        const initials = user.full_name ? user.full_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'UP';
+        headerPill.innerHTML = `
+          <div class="user-pill-logged" onclick="goToTab('account')" title="Ver mi certificado e historial" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:5px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:700;color:#0f3d6e;">
+            <span class="user-avatar-tiny" style="background:#0f3d6e;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;">${initials}</span>
+            <span>${escapeHtml(user.full_name)}</span>
+          </div>
+          <button type="button" class="btn-logout" onclick="handleLogout()" title="Cerrar sesión" style="margin-left:6px;background:none;border:none;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;">Salir</button>
+        `;
+      }
+
+      // Identidad en la pestaña de firma
+      const activeSignerName = document.getElementById('active-signer-name');
+      if (activeSignerName) activeSignerName.textContent = user.full_name;
+      const activeSignerDesc = document.getElementById('active-signer-desc');
+      if (activeSignerDesc) {
+        activeSignerDesc.textContent = 
+          `${user.email} · Serie: ${(user.serial_hex || '').substring(0, 16)}... · Válido hasta: ${(user.valid_to || '').substring(0, 10)}`;
+      }
+
+      // Pestaña Mi Certificado
+      const initials = user.full_name ? user.full_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'UP';
+      const avatarEl = document.getElementById('auth-avatar-text');
+      if (avatarEl) avatarEl.textContent = initials;
+      const userNameEl = document.getElementById('auth-user-name');
+      if (userNameEl) userNameEl.textContent = user.full_name;
+      const userEmailEl = document.getElementById('auth-user-email');
+      if (userEmailEl) userEmailEl.textContent = user.email;
+      const userUnitEl = document.getElementById('auth-user-unit');
+      if (userUnitEl) userUnitEl.textContent = user.unit || 'Seguridad Informática';
+      const userCityEl = document.getElementById('auth-user-city');
+      if (userCityEl) userCityEl.textContent = `${user.city || 'La Paz'}, ${user.country || 'BO'}`;
+
+      const cnVal = document.getElementById('cert-cn-val');
+      if (cnVal) cnVal.textContent = user.full_name;
+      const emailVal = document.getElementById('cert-email-val');
+      if (emailVal) emailVal.textContent = user.email;
+      const serialVal = document.getElementById('cert-serial-val');
+      if (serialVal) serialVal.textContent = user.serial_hex;
+      const fpVal = document.getElementById('cert-fp-val');
+      if (fpVal) fpVal.textContent = user.fingerprint_sha256;
+      const valVal = document.getElementById('cert-validity-val');
+      if (valVal) {
+        valVal.textContent = `${(user.valid_from || '').substring(0, 10)} hasta ${(user.valid_to || '').substring(0, 10)}`;
+      }
+
+      updatePreviewStamp();
+      loadUserAuditLogs();
+    }
+
+    function renderAnonymousUser() {
+      const loadingEl = document.getElementById('auth-loading-state');
+      if (loadingEl) loadingEl.style.display = 'none';
+      const mainEl = document.getElementById('app-main-content');
+      if (mainEl) mainEl.style.display = 'block';
+
+      // Ocultar contenidos restringidos y mostrar carteles de acceso
+      const signActive = document.getElementById('sign-active-content');
+      if (signActive) signActive.style.display = 'none';
+      const signGate = document.getElementById('sign-gate-content');
+      if (signGate) signGate.style.display = 'block';
+
+      const accountActive = document.getElementById('account-active-content');
+      if (accountActive) accountActive.style.display = 'none';
+      const accountGate = document.getElementById('account-gate-content');
+      if (accountGate) accountGate.style.display = 'block';
+
+      const headerPill = document.getElementById('user-header-pill');
+      if (headerPill) {
+        headerPill.innerHTML = `
+          <button type="button" onclick="goToTab('sign')" class="btn-subtle" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:999px;font-size:12px;font-weight:700;color:#0f3d6e;">
+            <span>🔑 Iniciar Sesión / Registro</span>
+          </button>
+        `;
+      }
+    }
+
+    async function handleGateRegister(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-gate-register');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-label">Generando RSA 2048 y emitiendo certificado CA...</span>';
+
+      const payload = {
+        full_name: document.getElementById('gate-reg-name').value,
+        email: document.getElementById('gate-reg-email').value,
+        password: document.getElementById('gate-reg-password').value,
+        unit: document.getElementById('gate-reg-unit').value,
+        city: document.getElementById('gate-reg-city').value,
+        organization: document.getElementById('gate-reg-org').value,
+      };
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Fallo en el registro');
+        }
+
+        window.showToast('¡Cuenta Creada!', 'Certificado emitido por CA UPDS. Plataforma desbloqueada.', 'success', 5000);
+        await checkUserAuth();
+      } catch (err) {
+        window.showToast('Error de Registro', err.message, 'error', 5000);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">⚡</span><span class="btn-label">Crear Cuenta & Emitir Certificado X.509</span>';
+      }
+    }
+
+    async function handleGateLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-gate-login');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-label">Verificando credenciales...</span>';
+
+      const payload = {
+        email: document.getElementById('gate-login-email').value,
+        password: document.getElementById('gate-login-password').value,
+      };
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Credenciales inválidas');
+        }
+
+        window.showToast('Acceso Autorizado', 'Bienvenido a la suite UPDS.', 'success');
+        await checkUserAuth();
+      } catch (err) {
+        window.showToast('Error de Acceso', err.message, 'error', 5000);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">🚀</span><span class="btn-label">Ingresar a la Plataforma</span>';
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.showToast('Sesión Finalizada', 'Has cerrado sesión correctamente.', 'info');
+        currentUser = null;
+        renderAnonymousUser();
+      } catch (e) {
+        window.showToast('Error', 'Fallo al cerrar sesión', 'error');
+      }
+    }
+
+    // EJECUTAR FIRMA DIGITAL PAdES
+    async function executeSignPdf() {
+      if (!selectedPdfFile) {
+        window.showToast('Falta Documento', 'Por favor selecciona un archivo PDF para firmar.', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-sign');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-label">Firmando documento PAdES...</span>';
+
+      const fd = new FormData();
+      fd.append('pdf', selectedPdfFile);
+      fd.append('cert_mode', 'account');
+      fd.append('contact', currentUser ? currentUser.full_name : 'Estudiante UPDS');
+      fd.append('reason', document.getElementById('sign-reason').value);
+      fd.append('location', document.getElementById('sign-loc').value);
+      fd.append('hash_algo', 'sha256');
+
+      const isVisual = (currentSigVisibility === 'visible');
+      fd.append('visual_signature', isVisual ? 'true' : 'false');
+      if (isVisual) {
+        fd.append('sigpage', document.getElementById('sign-page').value);
+        fd.append('visual_position', document.getElementById('sign-pos').value);
+        if (hasDrawnSignature) {
+          fd.append('signature_image_b64', canvas.toDataURL('image/png'));
+        }
+      }
+
+      try {
+        const res = await fetch('/api/sign', { method: 'POST', body: fd });
+        if (res.status === 401) {
+          window.showToast('Acceso Denegado (401)', 'Middleware: Debes iniciar sesión para firmar.', 'error', 5000);
+          renderAnonymousUser();
+          return;
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Error del servidor' }));
+          throw new Error(err.error || 'Fallo en la firma');
+        }
+
+        const blob = await res.blob();
+        signedPdfBlob = blob;
+        const origBase = selectedPdfFile.name.replace(/\.[^/.]+$/, "");
+        signedPdfFileName = origBase + '_firmado_pades.pdf';
+
+        // Auto-descargar
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = signedPdfFileName;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        document.getElementById('sign-result-text').textContent = 
+          `Se generó "${signedPdfFileName}" (${(blob.size / 1024).toFixed(1)} KB) con firma PAdES ISO 32000-2 y cadena de confianza CA UPDS.`;
+        document.getElementById('sign-result-card').style.display = 'block';
+
+        document.getElementById('btn-download-signed-pdf').onclick = () => {
+          const u = URL.createObjectURL(signedPdfBlob);
+          const dl = document.createElement('a');
+          dl.href = u;
+          dl.download = signedPdfFileName;
+          dl.click();
+          URL.revokeObjectURL(u);
+        };
+
+        window.showToast('¡Firma Completada!', 'El PDF firmado ha sido descargado automáticamente.', 'success');
+        loadUserAuditLogs();
+      } catch (err) {
+        window.showToast('Error de Firma', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">✍️</span><span class="btn-label">Firmar Documento con PAdES</span>';
+      }
+    }
+
+    function goToAuditWithSignedPdf() {
+      if (!signedPdfBlob) return;
+      const file = new File([signedPdfBlob], signedPdfFileName, { type: 'application/pdf' });
+      applyVerifyPdfFile(file);
+      goToTab('verify');
+      executeVerifyPdf();
+    }
+
+    // AUDITAR / VALIDAR PDF (PÚBLICO Y ACCESIBLE DESDE CUALQUIER NODO EN LA RED)
+    async function executeVerifyPdf() {
+      if (!selectedVerifyPdfFile) {
+        window.showToast('Falta Documento', 'Por favor selecciona un PDF firmado para auditar.', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-verify');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-label">Auditando criptografía PAdES y consultando validar.firmadigital.bo...</span>';
+
+      const fd = new FormData();
+      fd.append('pdf', selectedVerifyPdfFile);
+
+      const container = document.getElementById('verify-results-container');
+      container.innerHTML = '';
+      container.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/verify', { method: 'POST', body: fd });
+        if (res.status === 401) {
+          window.showToast('Acceso Denegado (401)', 'Error inesperado: La validación es pública.', 'error', 5000);
+          return;
+        }
+        const j = await res.json();
+        if (!res.ok || !j.ok) {
+          throw new Error(j.error || 'Error al validar el documento');
+        }
+
+        if (!j.has_signatures || j.signatures.length === 0) {
+          container.innerHTML = `
+            <div class="audit-card" style="border-left: 4px solid #d97706; padding: 20px;">
+              <h4 style="color:#d97706;margin:0 0 6px;font-size:16px;">⚠️ Sin Firmas Digitales Detectadas</h4>
+              <p style="font-size:13px;color:#64748b;margin:0;line-height:1.5;">
+                El archivo analizado no contiene diccionarios de firma digital PAdES (<code>/Sig</code> con <code>/ByteRange</code>) o es un documento PDF estándar sin certificar.
+              </p>
+            </div>
+          `;
+        } else {
+          let html = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+              <h4 style="color:var(--primary);font-size:16px;margin:0;display:flex;align-items:center;gap:8px;">
+                <span>🛡️ Firmas Digitales Verificadas:</span>
+                <span class="badge-tag badge-info" style="font-size:13px;">${j.signatures.length} ${j.signatures.length === 1 ? 'firma' : 'firmas'}</span>
+              </h4>
+              <span style="font-size:12px;color:var(--text-muted);">
+                ${j.official_service_reachable ? '🌐 Conectado con validar.firmadigital.bo' : '🔒 Auditoría criptográfica local completada'}
+              </span>
+            </div>
+          `;
+
+          j.signatures.forEach(s => {
+            const cert = s.cert || {};
+            const meta = s.meta || {};
+            const adsib = s.official_adsib;
+            const signerName = s.signer_name || cert.common_name || meta.name || 'Firmante';
+            const initials = signerName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+            // Status border and badges
+            const isCorrupted = !s.integrity;
+            const borderColor = isCorrupted ? '#ef4444' : (s.signature && s.trusted ? '#10b981' : '#f59e0b');
+            const badgeClass = isCorrupted ? 'badge-danger' : (s.signature ? 'badge-success' : 'badge-danger');
+            const badgeText = isCorrupted ? '❌ DOCUMENTO ALTERADO' : (s.signature ? '✅ DOCUMENTO ÍNTEGRO' : '❌ FIRMA CORRUPTA');
+
+            html += `
+              <div class="audit-card" style="border-left: 5px solid ${borderColor}; margin-bottom: 24px; padding: 22px;">
+                <!-- ENCABEZADO DE LA FIRMA -->
+                <div class="sig-header-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px;">
+                  <div class="sig-header-left">
+                    <span class="sig-num-badge">Firma #${s.index}</span>
+                    <span class="sig-tech-pill">Estándar PAdES · ISO 32000-2 · adbe.pkcs7.detached</span>
+                  </div>
+                  <div>
+                    <span class="badge-tag ${badgeClass}" style="font-size:12px;padding:6px 14px;font-weight:800;">${badgeText}</span>
+                  </div>
+                </div>
+
+                <!-- TARJETA DESTACADA DEL FIRMANTE -->
+                <div class="signer-highlight-card" style="${isCorrupted ? 'background:#fef2f2;border-color:#fecaca;' : ''}">
+                  <div class="signer-avatar" style="${isCorrupted ? 'background:#fee2e2;color:#991b1b;' : ''}">${initials}</div>
+                  <div style="flex:1;">
+                    <div class="signer-label-tag" style="${isCorrupted ? 'color:#b91c1c;' : ''}">Titular y Signatario Reconocido:</div>
+                    <div class="signer-title-name">${escapeHtml(signerName)}</div>
+                    <div class="signer-org-line">
+                      ${escapeHtml(cert.organization || 'Universidad Privada Domingo Savio')} 
+                      ${cert.unit ? '· ' + escapeHtml(cert.unit) : ''}
+                      ${cert.email ? '· <a href="mailto:' + escapeHtml(cert.email) + '" style="color:#0f3d6e;">' + escapeHtml(cert.email) + '</a>' : ''}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- MÉTRICAS CRIPTOGRÁFICAS CLAVE -->
+                <div class="audit-metric-grid">
+                  <div class="audit-badge-box">
+                    <span class="badge-lbl">Integridad (Hash SHA-256):</span>
+                    <span class="${s.integrity ? 'status-ok' : 'status-bad'}">
+                      ${s.integrity ? '✅ Inalterado (ByteRange Válido)' : '❌ Alterado post-firma'}
+                    </span>
+                  </div>
+                  <div class="audit-badge-box">
+                    <span class="badge-lbl">Firma Criptográfica:</span>
+                    <span class="${s.signature ? 'status-ok' : 'status-bad'}">
+                      ${s.signature ? '✅ Criptografía RSA Correcta' : '❌ Resumen o clave no coinciden'}
+                    </span>
+                  </div>
+                  <div class="audit-badge-box">
+                    <span class="badge-lbl">Cadena de Confianza:</span>
+                    <span class="${s.trusted ? 'status-ok' : 'status-bad'}">
+                      ${s.trusted ? '🏛️ CA Raíz UPDS (Confiable)' : '⚠️ CA No Instalada en Almacén'}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- METADATOS DEL ACTO DE FIRMA -->
+                <div style="margin-top:14px;">
+                  <div class="sig-info-table-grid">
+                    <div class="sig-info-item">
+                      <span class="info-k">Motivo / Razón:</span>
+                      <span class="info-v">${escapeHtml(meta.reason || 'Conformidad técnica')}</span>
+                    </div>
+                    <div class="sig-info-item">
+                      <span class="info-k">Lugar / Sede:</span>
+                      <span class="info-v">${escapeHtml(meta.location || 'La Paz, Bolivia')}</span>
+                    </div>
+                    <div class="sig-info-item">
+                      <span class="info-k">Fecha de Firma (M):</span>
+                      <span class="info-v">${escapeHtml(meta.signing_date || 'Registrada en CMS')}</span>
+                    </div>
+                    <div class="sig-info-item">
+                      <span class="info-k">Contacto Registrado:</span>
+                      <span class="info-v">${escapeHtml(meta.contact || signerName)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DETALLES TÉCNICOS DEL CERTIFICADO X.509 -->
+                ${cert.serial_hex ? `
+                  <div class="sig-cert-details-box">
+                    <div class="cert-detail-title">📜 Certificado Digital X.509 v3 Asociado:</div>
+                    <div class="cert-detail-grid">
+                      <div><b>Emisor (Issuer CA):</b> ${escapeHtml(cert.issuer_cn || 'Autoridad Certificadora Raíz UPDS')}</div>
+                      <div><b>Algoritmo:</b> RSA ${cert.key_size || 2048} bits (SHA-256)</div>
+                      <div><b>Número de Serie:</b> <code style="font-size:11px;">${cert.serial_hex}</code></div>
+                      <div><b>Vigencia:</b> ${(cert.valid_from || '').substring(0, 10)} hasta ${(cert.valid_to || '').substring(0, 10)}</div>
+                      <div style="grid-column: 1 / -1;"><b>Huella Digital (Fingerprint SHA-256):</b> <code style="font-size:11px;">${cert.fingerprint_sha256 || 'N/A'}</code></div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- DICTAMEN TÉCNICO LOCAL -->
+                <div style="margin-top:12px;font-size:12px;color:#475569;line-height:1.5;background:#f8fafc;padding:10px 14px;border-radius:6px;border:1px solid var(--border);">
+                  <b>Dictamen técnico local:</b> ${escapeHtml(s.explanation)}
+                </div>
+
+                <!-- RESPALDO OFICIAL DE VALIDAR.FIRMADIGITAL.BO -->
+                ${renderOfficialAdsibBox(adsib, s)}
+              </div>
+            `;
+          });
+          container.innerHTML = html;
+        }
+        container.style.display = 'block';
+      } catch (err) {
+        window.showToast('Error de Validación', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">🔍</span><span class="btn-label">Auditar Documento y Ver Firmante</span>';
+      }
+    }
+
+    // RENDER DEL BLOQUE OFICIAL AGETIC / ADSIB (validar.firmadigital.bo)
+    function renderOfficialAdsibBox(adsib, s) {
+      if (!adsib) {
+        return `
+          <div class="official-adsib-box info-mode">
+            <div class="adsib-header">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span class="adsib-flag">🇧🇴</span>
+                <div>
+                  <strong style="color:var(--primary);font-size:13px;">Servicio de Validación Oficial del Estado (validar.firmadigital.bo)</strong>
+                  <div class="adsib-sub" style="color:var(--text-muted);">Agencia de Gobierno Electrónico y Tecnologías de Información (AGETIC / ADSIB)</div>
+                </div>
+              </div>
+              <a href="https://validar.firmadigital.bo" target="_blank" rel="noopener" class="btn-link-external">
+                Abrir portal oficial ↗
+              </a>
+            </div>
+            <p class="adsib-trust-note" style="color:var(--text-muted);margin:0;">
+              El servicio central de verificación en línea está disponible para comprobación externa. Puedes subir este archivo directamente a <b>validar.firmadigital.bo</b> para corroborar de forma independiente la integridad y el reconocimiento del estándar PAdES.
+            </p>
+          </div>
+        `;
+      }
+
+      const certAdsib = adsib.certificado || {};
+      const detalle = adsib.detalleValidacion || {};
+
+      const adsibSigner = certAdsib.nombreSignatario || detalle.certificadoTitular || adsib.nombreSignatario || s.signer_name || 'Desconocido';
+      const docEstado = detalle.documentoEstado || adsib.documentoEstado || (adsib.noModificado ? 'Documento auténtico' : 'Documento modificado');
+      const docValidacion = detalle.documentoValidacion || adsib.documentoValidacion || (adsib.noModificado ? 'EXITO' : 'ERROR');
+      const docDescripcion = detalle.documentoDescripcion || adsib.documentoDescripcion || '';
+      const periodVal = detalle.periodoValidezValidacion || adsib.periodoValidezValidacion || 'EXITO';
+      const certVal = detalle.certificadoValidacion || adsib.certificadoValidacion || 'ADVERTENCIA';
+
+      const docOk = (adsib.noModificado !== false) && (docValidacion !== 'ERROR');
+      const periodOk = periodVal === 'EXITO';
+
+      return `
+        <div class="official-adsib-box" style="${!docOk ? 'background:#fef2f2;border-color:#fca5a5;border-left-color:#ef4444;' : ''}">
+          <div class="adsib-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="adsib-flag">🇧🇴</span>
+              <div>
+                <strong style="color:${docOk ? '#78350f' : '#991b1b'};font-size:13px;">Respaldo Oficial del Estado Plurinacional de Bolivia</strong>
+                <div class="adsib-sub" style="color:${docOk ? '#78350f' : '#b91c1c'};">Dictamen emitido por AGETIC / ADSIB vía validar.firmadigital.bo</div>
+              </div>
+            </div>
+            <a href="https://validar.firmadigital.bo" target="_blank" rel="noopener" class="btn-link-external" style="${!docOk ? 'color:#991b1b;' : ''}">
+              🌐 Portal validar.firmadigital.bo ↗
+            </a>
+          </div>
+
+          <div class="adsib-grid" style="${!docOk ? 'background:rgba(254, 226, 226, 0.6);color:#7f1d1d;' : ''}">
+            <div>
+              <b>Signatario Reconocido:</b><br>
+              <span style="font-weight:700;">${escapeHtml(adsibSigner)}</span>
+              ${certAdsib.organizacionSignatario ? `<br><small style="color:${docOk ? '#78350f' : '#7f1d1d'};">${escapeHtml(certAdsib.organizacionSignatario)}</small>` : ''}
+            </div>
+            <div>
+              <b>Estado del Documento:</b><br>
+              <span style="font-weight:700;color:${docOk ? '#065f46' : '#991b1b'};">
+                ${docOk ? '✅ ' + escapeHtml(docEstado) : '❌ ' + escapeHtml(docEstado)}
+              </span>
+            </div>
+            <div>
+              <b>Periodo de Validez:</b><br>
+              <span style="font-weight:700;color:${periodOk ? '#065f46' : '#991b1b'};">
+                ${periodOk ? '✅ En vigencia legal' : '⚠️ ' + escapeHtml(periodVal)}
+              </span>
+            </div>
+            <div>
+              <b>Evaluación de Certificado:</b><br>
+              <span>${escapeHtml(certVal)} (CA Privada / Académica)</span>
+            </div>
+          </div>
+
+          <div class="adsib-trust-note" style="${!docOk ? 'color:#991b1b;' : ''}">
+            ${docOk 
+              ? `ℹ️ <b>Diagnóstico oficial:</b> ${escapeHtml(docDescripcion || 'El documento no ha sido modificado después de la firma.')} La plataforma estatal verifica y certifica que la estructura PAdES y el resumen matemático son 100% auténticos. Al ser una CA Raíz Académica UPDS, el Estado emite advertencia de confianza porque la raíz no está en la TSL oficial de la ATT.`
+              : `🚨 <b>Ruptura de Integridad Confirmada por el Estado:</b> ${escapeHtml(docDescripcion || 'El documento ha sido modificado después de la firma.')} El Estado Plurinacional de Bolivia declara la firma INVÁLIDA.`
+            }
+          </div>
+
+          ${!docOk ? `
+            <div style="margin-top:12px;background:#ffffff;border:1.5px dashed #dc2626;border-radius:8px;padding:12px 16px;font-size:12px;color:#991b1b;line-height:1.5;">
+              <strong style="display:block;font-size:13px;margin-bottom:4px;">🔍 ¿Por qué no lo ves a simple vista en validar.firmadigital.bo?</strong>
+              En el diseño de la web estatal de la AGETIC, el estado de integridad está <b>colapsado por defecto</b>. Para verlo:<br>
+              1. En la tarjeta con el nombre del firmante, haz clic en el botón <b>"VER DETALLE"</b> (esquina derecha).<br>
+              2. Se desplegará la lista de 4 verificaciones. El <b>punto 1</b> aparecerá con una insignia roja: <b>❌ Documento modificado</b> y el texto <i>"El documento ha sido modificado después de la firma"</i>.<br>
+              3. En el PDF original sin alterar, ese mismo punto 1 aparece con una insignia verde: <b>✅ Documento auténtico</b>.
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    // SIMULADOR DE ALTERACIÓN / TAMPERING
+    async function executeTamperAndAudit() {
+      let fileToTamper = selectedVerifyPdfFile;
+      if (!fileToTamper && signedPdfBlob) {
+        fileToTamper = new File([signedPdfBlob], signedPdfFileName, { type: 'application/pdf' });
+      }
+
+      if (!fileToTamper) {
+        window.showToast('Falta Archivo', 'Selecciona un archivo PDF firmado primero para probar la alteración.', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btn-tamper-run');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Corrompiendo byte en ByteRange...';
+      }
+
+      try {
+        const fd = new FormData();
+        fd.append('pdf', fileToTamper);
+
+        const res = await fetch('/api/tamper', {
+          method: 'POST',
+          body: fd
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Error al alterar PDF' }));
+          throw new Error(err.error || 'Error al alterar');
+        }
+
+        const blob = await res.blob();
+        const baseName = fileToTamper.name.replace(/\.[^/.]+$/, "");
+        const tamperedName = baseName + '_ALTERADO.pdf';
+        const tamperedFile = new File([blob], tamperedName, { type: 'application/pdf' });
+
+        // Auto-descargar la copia alterada para que el usuario la tenga en su carpeta de Descargas
+        const dlUrl = URL.createObjectURL(blob);
+        const dlA = document.createElement('a');
+        dlA.href = dlUrl;
+        dlA.download = tamperedName;
+        dlA.click();
+        URL.revokeObjectURL(dlUrl);
+
+        // Asignar al validador y actualizar UI
+        applyVerifyPdfFile(tamperedFile);
+
+        window.showToast(
+          '🧪 PDF Alterado y Descargado',
+          `Se descargó "${tamperedName}". En validar.firmadigital.bo haz clic en el botón "VER DETALLE" para ver el punto "Documento modificado".`,
+          'warning',
+          7000
+        );
+
+        // Ejecutar auditoría automáticamente para ver el fallo
+        await executeVerifyPdf();
+      } catch (e) {
+        window.showToast('Error en alterador', e.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '⚡ Alterar este PDF y Auditar de inmediato';
+        }
+      }
+    }
+
+    async function executeTamperDownload() {
+      let fileToTamper = selectedVerifyPdfFile;
+      if (!fileToTamper && signedPdfBlob) {
+        fileToTamper = new File([signedPdfBlob], signedPdfFileName, { type: 'application/pdf' });
+      }
+
+      if (!fileToTamper) {
+        window.showToast('Falta Archivo', 'Selecciona un archivo PDF firmado primero para generar la copia alterada.', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btn-tamper-dl');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Descargando copia alterada...';
+      }
+
+      try {
+        const fd = new FormData();
+        fd.append('pdf', fileToTamper);
+
+        const res = await fetch('/api/tamper', {
+          method: 'POST',
+          body: fd
+        });
+
+        if (!res.ok) {
+          throw new Error('Error al generar PDF alterado');
+        }
+
+        const blob = await res.blob();
+        const baseName = fileToTamper.name.replace(/\.[^/.]+$/, "");
+        const tamperedName = baseName + '_ALTERADO.pdf';
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = tamperedName;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        window.showToast(
+          'Archivo Descargado',
+          `Se descargó "${tamperedName}". Puedes subirlo a https://validar.firmadigital.bo para comprobar que el Estado lo detecta modificado.`,
+          'success',
+          6000
+        );
+      } catch (e) {
+        window.showToast('Error', e.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '⬇️ Descargar copia alterada (.pdf)';
+        }
+      }
+    }
+
+    async function tamperSignedPdfAndAudit() {
+      if (!signedPdfBlob) return;
+      const file = new File([signedPdfBlob], signedPdfFileName, { type: 'application/pdf' });
+      applyVerifyPdfFile(file);
+      goToTab('verify');
+      await executeTamperAndAudit();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // CARGAR BITÁCORA DE AUDITORÍA
+    async function loadUserAuditLogs() {
+      const msg = document.getElementById('audit-loading-msg');
+      const table = document.getElementById('audit-logs-table');
+      const tbody = document.getElementById('audit-logs-tbody');
+      if (!msg || !table || !tbody) return;
+
+      try {
+        const res = await fetch('/api/auth/activity');
+        const data = await res.json();
+        if (data.ok && data.logs && data.logs.length > 0) {
+          tbody.innerHTML = '';
+          data.logs.forEach(log => {
+            const tr = document.createElement('tr');
+            const dateStr = new Date(log.created_at).toLocaleString();
+            const actionBadge = log.action === 'SIGN_PDF' 
+              ? '<span class="badge-tag badge-success">Firma PAdES</span>'
+              : log.action === 'REGISTER'
+              ? '<span class="badge-tag badge-info">Emisión Cert</span>'
+              : `<span class="badge-tag badge-info">${log.action}</span>`;
+            
+            const hashShort = log.file_hash ? log.file_hash.substring(0, 16) + '...' : '-';
+            tr.innerHTML = `
+              <td>${dateStr}</td>
+              <td>${actionBadge} · ${log.details || ''}</td>
+              <td><b>${log.filename || '-'}</b></td>
+              <td><code style="font-size:11px;background:#f1f5f9;padding:2px 4px;border-radius:3px;">${hashShort}</code></td>
+            `;
+            tbody.appendChild(tr);
+          });
+          msg.style.display = 'none';
+          table.style.display = 'table';
+        } else {
+          msg.textContent = 'Aún no tienes documentos firmados en tu bitácora.';
+          msg.style.display = 'block';
+          table.style.display = 'none';
+        }
+      } catch (e) {
+        msg.textContent = 'No se pudo cargar la bitácora de auditoría.';
+      }
+    }
+
+    // Inicializaciones al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      initCanvas();
+      checkUserAuth();
+    });
+  </script>
+</BaseLayout>

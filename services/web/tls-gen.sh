@@ -24,7 +24,7 @@ HOST="${HOST:-dc1}"
 DAYS_CA=3650
 DAYS_SERVER=825
 
-ALT="DNS:$DOMAIN,DNS:*.$DOMAIN,DNS:$HOST.$DOMAIN,DNS:web.$DOMAIN,DNS:www.$DOMAIN,DNS:print.$DOMAIN,DNS:portainer.$DOMAIN,DNS:mail.$DOMAIN,DNS:webmail.$DOMAIN,DNS:dashboard.$DOMAIN,DNS:joaquin.$DOMAIN,DNS:david.$DOMAIN,DNS:nicolas.$DOMAIN"
+ALT="DNS:$DOMAIN,DNS:*.$DOMAIN,DNS:$HOST.$DOMAIN,DNS:firma.$DOMAIN,DNS:web.$DOMAIN,DNS:www.$DOMAIN,DNS:print.$DOMAIN,DNS:portainer.$DOMAIN,DNS:mail.$DOMAIN,DNS:webmail.$DOMAIN,DNS:dashboard.$DOMAIN,DNS:joaquin.$DOMAIN,DNS:david.$DOMAIN,DNS:nicolas.$DOMAIN"
 
 # ── CA interna (se genera una sola vez) ─────────────────────
 if [ ! -s "$TLS/ca.key" ]; then

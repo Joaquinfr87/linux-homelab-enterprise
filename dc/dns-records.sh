@@ -75,4 +75,4 @@ echo "==> Zabbix (acceso directo) ..."
 ensure_a zabbix "$ZABBIX_IP" "$PROXY_IP"
 
 echo
-echo "Listo. Verificar con: dig mail.sudoers.lan / dig webmail.sudoers.lan / dig archivos.sudoers.lan / dig grafana.sudoers.lan / dig david.sudoers.lan / dig nicolas.sudoers.lan / dig zabbix.sudoers.lan"
+echo "Listo. Verificar con: dig firma.sudoers.lan / dig mail.sudoers.lan / dig webmail.sudoers.lan / dig archivos.sudoers.lan / dig grafana.sudoers.lan / dig david.sudoers.lan / dig nicolas.sudoers.lan / dig zabbix.sudoers.lan"

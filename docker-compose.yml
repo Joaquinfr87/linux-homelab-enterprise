@@ -56,6 +56,8 @@ services:
       - "443:443"
     volumes:
       - ${WEB_SITE_DIR:-./services/web/public}:/usr/share/nginx/html:ro
+      - ./services/web/tls:/etc/ssl/banco:ro
+      - ./services/web/tls:/etc/nginx/tls:ro
     networks:
       - tso-net
     # Portal de la intranet → siempre arriba al boot (*)

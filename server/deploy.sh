@@ -325,18 +325,20 @@ fi
 # ruta nginx -t falla con "cannot load certificate" aunque el conf es válido.
 echo "    validando services/web/nginx.conf ..."
 if [ ! -f "$ROOT/services/web/tls/server.crt" ]; then
-    echo "    ATENCIÓN: falta services/web/tls/ (certs, no versionado). Correr:"
-    echo "      sudo bash $ROOT/services/web/tls-gen.sh"
+    echo "    generando certificados TLS (CA interna y wildcard *.sudoers.lan)..."
+    bash "$ROOT/services/web/tls-gen.sh"
 fi
-if sudo docker run --rm \
+NGINX_TEST_OUT="$(sudo docker run --rm \
         -v "$ROOT/services/web/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
         -v "$ROOT/services/web/tls:/etc/nginx/tls:ro" \
-        nginx:1.27-alpine nginx -t >/dev/null 2>&1; then
-    echo "    nginx.conf OK"
-else
+        -v "$ROOT/services/web/tls:/etc/ssl/banco:ro" \
+        nginx:1.27-alpine nginx -t 2>&1)" || {
     echo "    ERROR: nginx.conf inválido → NO se tocan los contenedores."
+    echo "    Detalle del error de Nginx:"
+    echo "$NGINX_TEST_OUT" | sed 's/^/      /'
     exit 1
-fi
+}
+echo "    nginx.conf OK"
 # Valida las configs del stack de monitoreo (services/monitoring).
 echo "    validando services/monitoring/ ..."
 if sudo docker run --rm --entrypoint promtool \
@@ -430,9 +432,15 @@ if [ -f "$DIR/start-it.sh" ]; then
     echo "    tso-it-startup.service habilitado (orquestará servicios en cada inicio)"
 fi
 
-# Sincronizar registros DNS si hay ticket Kerberos activo de administrador
-if command -v klist >/dev/null 2>&1 && klist -s 2>/dev/null && [ -f "$ROOT/dc/dns-records.sh" ]; then
+# Sincronizar registros DNS en Samba AD DC (firma, webmail, etc.)
+if [ -f "$ROOT/dc/dns-records.sh" ] && command -v samba-tool >/dev/null 2>&1; then
     echo "==> [DNS] Sincronizando registros A en Samba AD DC (firma, webmail, etc.)..."
+    if ! klist -s 2>/dev/null && [ -f "$ROOT/.env" ]; then
+        AD_PASS="$(grep -E '^AD_ADMIN_PASSWORD=' "$ROOT/.env" | tail -1 | cut -d= -f2- | tr -d "\"'" || true)"
+        if [ -n "$AD_PASS" ]; then
+            printf '%s\n' "$AD_PASS" | kinit administrator >/dev/null 2>&1 || true
+        fi
+    fi
     sudo bash "$ROOT/dc/dns-records.sh" || true
 fi
 
